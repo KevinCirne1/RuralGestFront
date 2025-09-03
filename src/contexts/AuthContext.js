@@ -1,21 +1,18 @@
-// src/contexts/AuthContext.js
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
+// A URL base do nosso back-end
 const API_URL = "http://127.0.0.1:5000";
 
-// 1. Criamos o Contexto
 const AuthContext = createContext();
 
-// 2. Criamos o Provedor (o componente que vai "envelopar" nossa aplicação)
 export const AuthProvider = ({ children }) => {
-  const [authData, setAuthData] = useState(null); // Vai guardar os dados do usuário e o token
+  const [authData, setAuthData] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // useEffect para carregar os dados do localStorage quando o app inicia
+  // useEffect para carregar dados do localStorage quando a aplicação inicia
   useEffect(() => {
     const storedAuthData = localStorage.getItem('authData');
     if (storedAuthData) {
@@ -24,53 +21,47 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // Função de Login
+  // Função de Login (SIMPLIFICADA)
   const login = async (login, senha) => {
     try {
-      // Usamos a API Falsa para buscar um usuário com aquele login
-      const response = await axios.get(`${API_URL}/usuarios?login=${login}`);
-      const user = response.data[0];
+      const response = await axios.post(`${API_URL}/login`, {
+        login: login,
+        senha: senha,
+      });
 
-      // Se não encontrou um usuário ou a senha estiver errada (aqui não verificamos senha, é simulação)
-      if (!user) {
-        throw new Error("Usuário ou senha inválidos");
-      }
-
-      // Se encontrou, criamos nossos dados de autenticação (simulando um token)
+      // O back-end agora devolve diretamente os dados do utilizador
+      const userData = response.data;
+      
       const newAuthData = {
-        token: `fake-token-${user.id}`, // Token falso
-        user: user,
+        // Já não temos token, guardamos apenas os dados do utilizador
+        user: userData,
       };
 
-      // Salvamos no localStorage para persistir a sessão
+      // Guardamos no localStorage para persistir a sessão
       localStorage.setItem('authData', JSON.stringify(newAuthData));
-      // Salvamos no estado
+      // Guardamos no estado para a UI reagir
       setAuthData(newAuthData);
 
-      // Redireciona com base no perfil do usuário
-      if (user.perfil === 'produtor') {
-        navigate('/produtor');
+      // Redirecionamos com base no perfil
+      if (newAuthData.user.perfil === 'gestor') {
+        navigate('/admin/default'); // Rota para o painel de admin
       } else {
-        navigate('/admin');
+        navigate('/'); // Rota padrão para outros perfis
       }
 
     } catch (error) {
       console.error("Erro no login:", error);
-      // Lança o erro para que o formulário de login possa tratá-lo
       throw error;
     }
   };
 
-  // Função de Logout
+  // Função de Logout (continua igual)
   const logout = () => {
-    // Limpa o localStorage e o estado
     localStorage.removeItem('authData');
     setAuthData(null);
-    // Redireciona para a tela de login
     navigate('/auth/sign-in');
   };
 
-  // O "value" é o que será compartilhado com todos os componentes dentro do Provedor
   const value = {
     authData,
     loading,
@@ -78,9 +69,8 @@ export const AuthProvider = ({ children }) => {
     logout,
   };
 
-  // Não renderiza nada até que a verificação inicial do localStorage seja feita
   if (loading) {
-    return <div>Carregando sessão...</div>;
+    return <div>A carregar sessão...</div>;
   }
   
   return (
@@ -90,7 +80,7 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// 3. Criamos um "atalho" (hook customizado) para usar o contexto mais facilmente
+// Hook customizado para usar o contexto
 export const useAuth = () => {
   return useContext(AuthContext);
 };

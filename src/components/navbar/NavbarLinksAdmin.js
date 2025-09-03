@@ -24,9 +24,21 @@ import { MdNotificationsNone, MdInfoOutline } from 'react-icons/md';
 import { IoMdMoon, IoMdSunny } from 'react-icons/io';
 import { FaEthereum } from 'react-icons/fa';
 import routes from 'routes';
+// ==============================================================================
+// CORREÇÃO: Importamos o nosso hook de autenticação
+// ==============================================================================
+import { useAuth } from 'contexts/AuthContext';
+
+
 export default function HeaderLinks(props) {
   const { secondary } = props;
   const { colorMode, toggleColorMode } = useColorMode();
+  // ==============================================================================
+  // CORREÇÃO: Usamos o hook para aceder aos dados do utilizador e à função de logout
+  // ==============================================================================
+  const { authData, logout } = useAuth();
+
+
   // Chakra Color Mode
   const navbarIcon = useColorModeValue('gray.400', 'white');
   let menuBg = useColorModeValue('white', 'navy.800');
@@ -237,7 +249,8 @@ export default function HeaderLinks(props) {
           <Avatar
             _hover={{ cursor: 'pointer' }}
             color="white"
-            name="Adela Parkson"
+            // CORREÇÃO: Usamos o nome do utilizador logado
+            name={authData?.user?.nome || 'Utilizador'}
             bg="#11047A"
             size="sm"
             w="40px"
@@ -264,7 +277,8 @@ export default function HeaderLinks(props) {
               fontWeight="700"
               color={textColor}
             >
-              👋&nbsp; Hey, Adela
+              {/* CORREÇÃO: Mostramos o nome do utilizador dinamicamente */}
+              👋&nbsp; Olá, {authData?.user?.nome || 'Utilizador'}
             </Text>
           </Flex>
           <Flex flexDirection="column" p="10px">
@@ -284,12 +298,16 @@ export default function HeaderLinks(props) {
             >
               <Text fontSize="sm">Newsletter Settings</Text>
             </MenuItem>
+            {/* ============================================================================== */}
+            {/* CORREÇÃO: Adicionamos o onClick para chamar a função de logout */}
+            {/* ============================================================================== */}
             <MenuItem
               _hover={{ bg: 'none' }}
               _focus={{ bg: 'none' }}
               color="red.400"
               borderRadius="8px"
               px="14px"
+              onClick={logout}
             >
               <Text fontSize="sm">Log out</Text>
             </MenuItem>

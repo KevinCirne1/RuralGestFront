@@ -24,7 +24,6 @@ export default function AgricultoresPage() {
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
   const [agricultorParaDeletar, setAgricultorParaDeletar] = useState(null);
-  // NOVO: Estado para armazenar o agricultor que está sendo editado
   const [agricultorSelecionado, setAgricultorSelecionado] = useState(null);
   const textColor = useColorModeValue("secondaryGray.900", "white");
   const toast = useToast();
@@ -45,7 +44,6 @@ export default function AgricultoresPage() {
     fetchAgricultores();
   }, [fetchAgricultores]);
 
-  // NOVO: Função para abrir o modal de cadastro ou edição
   const handleOpenForm = (agricultor = null) => {
     setAgricultorSelecionado(agricultor);
     onFormOpen();
@@ -55,11 +53,21 @@ export default function AgricultoresPage() {
     try {
       if (agricultorSelecionado) {
         // LÓGICA DE ATUALIZAÇÃO (PUT)
-        await updateAgricultor(agricultorSelecionado.id, { ...values, data_atualizacao_cadastro: new Date().toISOString() });
+        
+        // CORREÇÃO: Criamos um novo objeto apenas com os campos do formulário
+        // para garantir que não enviamos dados extra como 'id' ou 'data_atualizacao_cadastro'.
+        const dadosParaAtualizar = {
+          nome: values.nome,
+          cpf: values.cpf,
+          comunidade: values.comunidade,
+          contato: values.contato
+        };
+
+        await updateAgricultor(agricultorSelecionado.id, dadosParaAtualizar);
         toast({ title: "Agricultor atualizado com sucesso!", status: "success", duration: 5000, isClosable: true });
       } else {
         // LÓGICA DE CRIAÇÃO (POST)
-        await createAgricultor({ ...values, data_atualizacao_cadastro: new Date().toISOString() });
+        await createAgricultor(values);
         toast({ title: "Agricultor cadastrado com sucesso!", status: "success", duration: 5000, isClosable: true });
       }
       
@@ -112,7 +120,6 @@ export default function AgricultoresPage() {
                 <Td>{agricultor.contato}</Td>
                 <Td>{new Date(agricultor.data_atualizacao_cadastro).toLocaleDateString()}</Td>
                 <Td>
-                  {/* NOVO: Botão de edição que abre o modal com os dados do agricultor */}
                   <Button size='sm' mr='10px' onClick={() => handleOpenForm(agricultor)}><Icon as={MdEdit} /></Button>
                   <Button size='sm' colorScheme='red' onClick={() => handleAbrirModalExclusao(agricultor)}><Icon as={MdDelete} /></Button>
                 </Td>
@@ -133,7 +140,6 @@ export default function AgricultoresPage() {
           <Modal isOpen={isFormOpen} onClose={onFormClose}>
             <ModalOverlay /><ModalContent>
               <Form>
-                {/* NOVO: Título do modal dinâmico */}
                 <ModalHeader>{agricultorSelecionado ? 'Editar Agricultor' : 'Cadastrar Novo Agricultor'}</ModalHeader><ModalCloseButton />
                 <ModalBody>
                   <Field name='nome'>{({ field, form }) => (<FormControl isInvalid={form.errors.nome && form.touched.nome}><FormLabel>Nome Completo</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.nome}</FormErrorMessage></FormControl>)}</Field>

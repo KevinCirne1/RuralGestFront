@@ -2,209 +2,164 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   Box, Flex, Button, Icon, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
-  FormControl, FormLabel, Input, useDisclosure, FormErrorMessage, Spinner, useToast, Select
+  FormControl, FormLabel, Input, useDisclosure, FormErrorMessage, Spinner, useToast, Textarea
 } from "@chakra-ui/react";
 import { MdEdit, MdDelete } from "react-icons/md";
 import Card from "components/card/Card.js";
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
+import { getServicos, createServico, updateServico, deleteServico } from "services/servicoService";
 
-// Importa os serviços de API
-import { getAgricultores } from "services/agricultorService";
-import { getServicos } from "services/servicoService";
-import { getSolicitacoes, createSolicitacao, updateSolicitacao, deleteSolicitacao } from "services/solicitacaoService";
-
-const SignupSchema = Yup.object().shape({
-  servicoId: Yup.string().required('É preciso selecionar um serviço'),
-  agricultorId: Yup.string().required('É preciso selecionar um agricultor'),
-  status: Yup.string().required('O status é obrigatório'),
+// CORREÇÃO: Removido o campo 'capacidade_hectares' da validação
+const ServicoSchema = Yup.object().shape({
+  nome_servico: Yup.string().required('O nome do serviço é obrigatório'),
+  descricao: Yup.string(),
 });
 
 export default function ServicosPage() {
-  const [solicitacoes, setSolicitacoes] = useState([]);
-  const [agricultores, setAgricultores] = useState([]);
   const [servicos, setServicos] = useState([]);
   const [loading, setLoading] = useState(true);
-  
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
-  
-  const [solicitacaoParaDeletar, setSolicitacaoParaDeletar] = useState(null);
-  const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState(null);
+  const [servicoParaDeletar, setServicoParaDeletar] = useState(null);
+  const [servicoSelecionado, setServicoSelecionado] = useState(null);
   const textColor = useColorModeValue("secondaryGray.900", "white");
   const toast = useToast();
 
-  const fetchData = useCallback(async () => {
+  const fetchServicos = useCallback(async () => {
     setLoading(true);
     try {
-      const [solicitacoesRes, agricultoresRes, servicosRes] = await Promise.all([
-        getSolicitacoes(),
-        getAgricultores(),
-        getServicos()
-      ]);
-      setSolicitacoes(solicitacoesRes.data);
-      setAgricultores(agricultoresRes.data);
-      setServicos(servicosRes.data);
+      const response = await getServicos();
+      setServicos(response.data);
     } catch (error) {
-      toast({ title: "Erro ao buscar dados.", description: "Verifique a conexão com a API.", status: "error", duration: 5000, isClosable: true });
+      toast({ title: "Erro ao buscar serviços.", status: "error", duration: 5000, isClosable: true });
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchServicos();
+  }, [fetchServicos]);
 
-  const handleOpenForm = (solicitacao = null) => {
-    setSolicitacaoSelecionada(solicitacao);
+  const handleOpenForm = (servico = null) => {
+    setServicoSelecionado(servico);
     onFormOpen();
   };
 
-  const handleAbrirModalExclusao = (solicitacao) => {
-    setSolicitacaoParaDeletar(solicitacao);
-    onDeleteOpen();
-  };
-
-  const handleConfirmarExclusao = async () => {
-    if (!solicitacaoParaDeletar) return;
-    try {
-      await deleteSolicitacao(solicitacaoParaDeletar.id);
-      toast({ title: 'Sucesso!', description: 'Solicitação excluída.', status: 'success', duration: 3000, isClosable: true });
-      onDeleteClose();
-      fetchData();
-    } catch (error) {
-      toast({ title: 'Erro ao excluir.', description: 'Não foi possível remover a solicitação.', status: 'error', duration: 5000, isClosable: true });
-      onDeleteClose();
-    }
-  };
-
+  // CORREÇÃO: Simplificado o handleSubmit para enviar apenas os valores do formulário
   const handleSubmit = async (values, actions) => {
     try {
-      const dataToSubmit = { ...values, 
-        agricultorId: parseInt(values.agricultorId),
-        servicoId: parseInt(values.servicoId)
-      };
-
-      if (solicitacaoSelecionada) {
-        // LÓGICA DE ATUALIZAÇÃO (PUT)
-        await updateSolicitacao(solicitacaoSelecionada.id, dataToSubmit);
-        toast({ title: "Solicitação atualizada com sucesso!", status: "success", duration: 5000, isClosable: true });
+      if (servicoSelecionado) {
+        await updateServico(servicoSelecionado.id, values);
+        toast({ title: "Serviço atualizado com sucesso!", status: "success", duration: 5000, isClosable: true });
       } else {
-        // LÓGICA DE CRIAÇÃO (POST)
-        await createSolicitacao({ ...dataToSubmit, 
-          data_solicitacao: new Date().toISOString(),
-          status: 'Pendente' // Define o status inicial
-        });
-        toast({ title: "Solicitação registrada com sucesso!", status: "success", duration: 5000, isClosable: true });
+        await createServico(values);
+        toast({ title: "Serviço cadastrado com sucesso!", status: "success", duration: 5000, isClosable: true });
       }
-      
       actions.setSubmitting(false);
       onFormClose();
-      fetchData();
+      fetchServicos();
     } catch (error) {
       toast({ title: "Erro na operação.", description: error.message, status: "error", duration: 5000, isClosable: true });
       actions.setSubmitting(false);
     }
   };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "---";
-    return new Date(dateString).toLocaleDateString();
+  
+  const handleAbrirModalExclusao = (servico) => {
+    setServicoParaDeletar(servico);
+    onDeleteOpen();
   };
 
-  if (loading) return (<Flex justify='center' align='center' height='50vh'><Spinner size='xl' /></Flex>);
+  const handleConfirmarExclusao = async () => {
+    if (!servicoParaDeletar) return;
+    try {
+      await deleteServico(servicoParaDeletar.id);
+      toast({
+        title: "Sucesso!",
+        description: `Serviço "${servicoParaDeletar.nome_servico}" excluído.`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true
+      });
+      onDeleteClose();
+      fetchServicos();
+    } catch (error) {
+      toast({
+        title: 'Erro ao excluir.',
+        description: 'Não foi possível remover o serviço.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true
+      });
+      onDeleteClose();
+    }
+  };
+
+  if (loading) {
+    return (<Flex justify='center' align='center' height='50vh'><Spinner size='xl' /></Flex>);
+  }
 
   return (
     <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
       <Card>
         <Flex justify='space-between' align='center' mb='20px'>
-          <Text fontSize='2xl' fontWeight='700' color={textColor}>Lista de Serviços Solicitados</Text>
-          <Button colorScheme='brand' onClick={() => handleOpenForm()}>Registrar Novo Serviço</Button>
+          <Text fontSize='2xl' fontWeight='700' color={textColor}>Catálogo de Serviços</Text>
+          <Button colorScheme='brand' onClick={() => handleOpenForm()}>Novo Serviço</Button>
         </Flex>
-        <Table variant='simple' size='sm'>
-          <Thead><Tr><Th>Serviço</Th><Th>Agricultor</Th><Th>Solicitação</Th><Th>Status</Th><Th>Ações</Th></Tr></Thead>
+        <Table variant='simple'>
+          {/* CORREÇÃO: Removida a coluna 'Capacidade (ha)' */}
+          <Thead><Tr><Th>Nome do Serviço</Th><Th>Descrição</Th><Th>Ações</Th></Tr></Thead>
           <Tbody>
-            {solicitacoes.map((sol) => {
-              // CORREÇÃO: Usando '==' para fazer a comparação de forma correta
-              const agricultor = agricultores.find(a => a.id == sol.agricultorId);
-              const servico = servicos.find(s => s.id == sol.servicoId);
-              return (
-                <Tr key={sol.id}>
-                  <Td>{servico ? servico.nome_servico : 'N/A'}</Td>
-                  <Td>{agricultor ? agricultor.nome : 'N/A'}</Td>
-                  <Td>{formatDate(sol.data_solicitacao)}</Td>
-                  <Td>{sol.status}</Td>
-                  <Td>
-                    <Button size='sm' mr='10px' onClick={() => handleOpenForm(sol)}><Icon as={MdEdit} /></Button>
-                    <Button size='sm' colorScheme='red' onClick={() => handleAbrirModalExclusao(sol)}><Icon as={MdDelete} /></Button>
-                  </Td>
-                </Tr>
-              );
-            })}
+            {servicos.map((servico) => (
+              <Tr key={servico.id}>
+                <Td>{servico.nome_servico}</Td>
+                <Td>{servico.descricao}</Td>
+                {/* CORREÇÃO: Removida a célula da capacidade */}
+                <Td>
+                  <Button size='sm' mr='10px' onClick={() => handleOpenForm(servico)}><Icon as={MdEdit} /></Button>
+                  <Button size='sm' colorScheme='red' onClick={() => handleAbrirModalExclusao(servico)}><Icon as={MdDelete} /></Button>
+                </Td>
+              </Tr>
+            ))}
           </Tbody>
         </Table>
       </Card>
-      
+
       <Formik
-        initialValues={solicitacaoSelecionada || { servicoId: '', agricultorId: '', status: 'Pendente' }}
-        validationSchema={SignupSchema}
+        // CORREÇÃO: Removido 'capacidade_hectares' dos valores iniciais
+        initialValues={servicoSelecionado || { nome_servico: '', descricao: '' }}
+        validationSchema={ServicoSchema}
         onSubmit={handleSubmit}
         enableReinitialize
       >
         {(props) => (
-          <Modal isOpen={isFormOpen} onClose={onFormClose}><ModalOverlay /><ModalContent>
-            <Form>
-              <ModalHeader>{solicitacaoSelecionada ? 'Editar Solicitação' : 'Registrar Nova Solicitação'}</ModalHeader><ModalCloseButton />
-              <ModalBody>
-                <Field name='servicoId'>{({ field, form }) => (
-                  <FormControl isInvalid={form.errors.servicoId && form.touched.servicoId}>
-                    <FormLabel>Tipo de Serviço</FormLabel>
-                    <Select {...field} placeholder="Selecione o serviço">
-                      {servicos.map(serv => (
-                        <option key={serv.id} value={serv.id}>{serv.nome_servico}</option>
-                      ))}
-                    </Select>
-                    <FormErrorMessage>{form.errors.servicoId}</FormErrorMessage>
-                  </FormControl>
-                )}</Field>
-                <Field name='agricultorId'>{({ field, form }) => (
-                  <FormControl mt={4} isInvalid={form.errors.agricultorId && form.touched.agricultorId}>
-                    <FormLabel>Agricultor</FormLabel>
-                    <Select {...field} placeholder="Selecione o agricultor">
-                      {agricultores.map(ag => (
-                        <option key={ag.id} value={ag.id}>{ag.nome}</option>
-                      ))}
-                    </Select>
-                    <FormErrorMessage>{form.errors.agricultorId}</FormErrorMessage>
-                  </FormControl>
-                )}</Field>
-                <Field name='status'>{({ field, form }) => (
-                  <FormControl mt={4} isInvalid={form.errors.status && form.touched.status}>
-                    <FormLabel>Status</FormLabel>
-                    <Select {...field}>
-                      <option value="Pendente">Pendente</option>
-                      <option value="Em Andamento">Em Andamento</option>
-                      <option value="Concluído">Concluído</option>
-                    </Select>
-                    <FormErrorMessage>{form.errors.status}</FormErrorMessage>
-                  </FormControl>
-                )}</Field>
-              </ModalBody>
-              <ModalFooter><Button colorScheme='brand' mr={3} isLoading={props.isSubmitting} type='submit'>Salvar</Button><Button variant='ghost' onClick={onFormClose}>Cancelar</Button></ModalFooter>
-            </Form>
-          </ModalContent></Modal>
+          <Modal isOpen={isFormOpen} onClose={onFormClose}>
+            <ModalOverlay /><ModalContent>
+              <Form>
+                <ModalHeader>{servicoSelecionado ? 'Editar Serviço' : 'Cadastrar Novo Serviço'}</ModalHeader><ModalCloseButton />
+                <ModalBody>
+                  <Field name='nome_servico'>{({ field, form }) => (<FormControl isInvalid={form.errors.nome_servico && form.touched.nome_servico}><FormLabel>Nome do Serviço</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.nome_servico}</FormErrorMessage></FormControl>)}</Field>
+                  <Field name='descricao'>{({ field, form }) => (<FormControl mt={4} isInvalid={form.errors.descricao && form.touched.descricao}><FormLabel>Descrição</FormLabel><Textarea {...field} /><FormErrorMessage>{form.errors.descricao}</FormErrorMessage></FormControl>)}</Field>
+                  {/* CORREÇÃO: Removido o campo 'capacidade_hectares' do formulário */}
+                </ModalBody>
+                <ModalFooter>
+                  <Button colorScheme='brand' mr={3} isLoading={props.isSubmitting} type='submit'>Salvar</Button>
+                  <Button variant='ghost' onClick={onFormClose}>Cancelar</Button>
+                </ModalFooter>
+              </Form>
+            </ModalContent>
+          </Modal>
         )}
       </Formik>
 
-      {/* Modal de Confirmação de Exclusão */}
       <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Confirmar Exclusão</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            Você tem certeza que deseja excluir esta solicitação?
+            Você tem certeza que deseja excluir o serviço <strong>{servicoParaDeletar?.nome_servico}</strong>?
           </ModalBody>
           <ModalFooter>
             <Button variant="ghost" mr={3} onClick={onDeleteClose}>Cancelar</Button>
@@ -212,6 +167,6 @@ export default function ServicosPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </Box>
-  );
+    </Box>
+  );
 }

@@ -17,7 +17,7 @@ const SignupSchema = Yup.object().shape({
   area_total: Yup.number().required('A área total é obrigatória'),
   area_exploravel: Yup.number().required('A área explorável é obrigatória'),
   coordenadas_geograficas: Yup.string().required('As coordenadas são obrigatórias'),
-  agricultorId: Yup.string().required('É preciso selecionar um agricultor'),
+  agricultor_id: Yup.string().required('É preciso selecionar um agricultor'), // Corrigido para agricultor_id
 });
 
 export default function PropriedadesPage() {
@@ -58,12 +58,16 @@ export default function PropriedadesPage() {
 
   const handleSubmit = async (values, actions) => {
     try {
-      const dataToSubmit = { ...values, agricultorId: parseInt(values.agricultorId) };
+      // CORREÇÃO: Separamos o ID do agricultor do resto dos dados da propriedade.
+      const { agricultor_id, ...dadosPropriedade } = values;
+
       if (propriedadeSelecionada) {
-        await updatePropriedade(propriedadeSelecionada.id, dataToSubmit);
+        // Na atualização, a API não espera o agricultor_id na URL.
+        await updatePropriedade(propriedadeSelecionada.id, values); // 'values' já contém o agricultor_id que pode ser atualizado.
         toast({ title: "Propriedade atualizada com sucesso!", status: "success", duration: 5000, isClosable: true });
       } else {
-        await createPropriedade(dataToSubmit);
+        // CORREÇÃO: Passamos o agricultor_id e os dados da propriedade como argumentos separados.
+        await createPropriedade(agricultor_id, dadosPropriedade);
         toast({ title: "Propriedade cadastrada com sucesso!", status: "success", duration: 5000, isClosable: true });
       }
       
@@ -107,32 +111,18 @@ export default function PropriedadesPage() {
           <Thead><Tr><Th>Propriedade</Th><Th>Agricultor</Th><Th>Tipo</Th><Th>Área Total (ha)</Th><Th>Área Explorável (ha)</Th><Th>Coordenadas</Th><Th>Ações</Th></Tr></Thead>
           <Tbody>
             {propriedades.map((prop) => {
-              // CORREÇÃO: Usando '==' para garantir que a comparação de IDs funcione
-              const agricultor = agricultores.find(a => a.id == prop.agricultorId);
+              const agricultor = agricultores.find(a => a.id === prop.agricultor_id);
               return (
                 <Tr key={prop.id}>
                   <Td>{prop.terreno}</Td>
-                  {/* Agora, o nome do agricultor será exibido corretamente */}
-                  <Td>{agricultor ? agricultor.nome : 'Agricultor não encontrado'}</Td>
+                  <Td>{agricultor ? agricultor.nome : 'N/A'}</Td>
                   <Td>{prop.tipo_agricultura}</Td>
-                  <Td>{prop.area_total} ha</Td>
-                  <Td>{prop.area_exploravel} ha</Td>
+                  <Td>{prop.area_total}</Td>
+                  <Td>{prop.area_exploravel}</Td>
                   <Td>{prop.coordenadas_geograficas}</Td>
                   <Td>
-                    <Button 
-                      size='sm' 
-                      mr='10px'
-                      onClick={() => handleOpenForm(prop)}
-                    >
-                      <Icon as={MdEdit} />
-                    </Button>
-                    <Button 
-                        size='sm' 
-                        colorScheme='red'
-                        onClick={() => handleAbrirModalExclusao(prop)}
-                    >
-                        <Icon as={MdDelete} />
-                    </Button>
+                    <Button size='sm' mr='10px' onClick={() => handleOpenForm(prop)}><Icon as={MdEdit} /></Button>
+                    <Button size='sm' colorScheme='red' onClick={() => handleAbrirModalExclusao(prop)}><Icon as={MdDelete} /></Button>
                   </Td>
                 </Tr>
               );
@@ -142,29 +132,36 @@ export default function PropriedadesPage() {
       </Card>
 
       <Formik 
-        initialValues={propriedadeSelecionada || { terreno: '', tipo_agricultura: '', area_total: '', area_exploravel: '', coordenadas_geograficas: '', agricultorId: '' }} 
+        initialValues={propriedadeSelecionada ? {
+          terreno: propriedadeSelecionada.terreno,
+          tipo_agricultura: propriedadeSelecionada.tipo_agricultura,
+          area_total: propriedadeSelecionada.area_total,
+          area_exploravel: propriedadeSelecionada.area_exploravel,
+          coordenadas_geograficas: propriedadeSelecionada.coordenadas_geograficas,
+          agricultor_id: propriedadeSelecionada.agricultor_id
+        } : { terreno: '', tipo_agricultura: '', area_total: '', area_exploravel: '', coordenadas_geograficas: '', agricultor_id: '' }} 
         validationSchema={SignupSchema} 
         onSubmit={handleSubmit}
         enableReinitialize
       >
         {(props) => (
           <Modal isOpen={isFormOpen} onClose={onFormClose}><ModalOverlay /><ModalContent>
-            <Form><ModalHeader>Cadastrar Nova Propriedade</ModalHeader><ModalCloseButton />
+            <Form><ModalHeader>{propriedadeSelecionada ? "Editar Propriedade" : "Cadastrar Nova Propriedade"}</ModalHeader><ModalCloseButton />
               <ModalBody>
                 <Field name='terreno'>{({ field, form }) => (<FormControl isInvalid={form.errors.terreno && form.touched.terreno}><FormLabel>Nome da Propriedade</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.terreno}</FormErrorMessage></FormControl>)}</Field>
                 <Field name='tipo_agricultura'>{({ field, form }) => (<FormControl mt={4} isInvalid={form.errors.tipo_agricultura && form.touched.tipo_agricultura}><FormLabel>Tipo de Agricultura</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.tipo_agricultura}</FormErrorMessage></FormControl>)}</Field>
                 <Field name='area_total'>{({ field, form }) => (<FormControl mt={4} isInvalid={form.errors.area_total && form.touched.area_total}><FormLabel>Área Total (ha)</FormLabel><Input {...field} type="number" /><FormErrorMessage>{form.errors.area_total}</FormErrorMessage></FormControl>)}</Field>
                 <Field name='area_exploravel'>{({ field, form }) => (<FormControl mt={4} isInvalid={form.errors.area_exploravel && form.touched.area_exploravel}><FormLabel>Área Explorável (ha)</FormLabel><Input {...field} type="number" /><FormErrorMessage>{form.errors.area_exploravel}</FormErrorMessage></FormControl>)}</Field>
                 <Field name='coordenadas_geograficas'>{({ field, form }) => (<FormControl mt={4} isInvalid={form.errors.coordenadas_geograficas && form.touched.coordenadas_geograficas}><FormLabel>Coordenadas Geográficas</FormLabel><Input {...field} placeholder="-7.123, -35.567" /><FormErrorMessage>{form.errors.coordenadas_geograficas}</FormErrorMessage></FormControl>)}</Field>
-                <Field name='agricultorId'>{({ field, form }) => (
-                  <FormControl mt={4} isInvalid={form.errors.agricultorId && form.touched.agricultorId}>
+                <Field name='agricultor_id'>{({ field, form }) => (
+                  <FormControl mt={4} isInvalid={form.errors.agricultor_id && form.touched.agricultor_id}>
                     <FormLabel>Agricultor Responsável</FormLabel>
                     <Select {...field} placeholder="Selecione o agricultor">
                       {agricultores.map(ag => (
                         <option key={ag.id} value={ag.id}>{ag.nome}</option>
                       ))}
                     </Select>
-                    <FormErrorMessage>{form.errors.agricultorId}</FormErrorMessage>
+                    <FormErrorMessage>{form.errors.agricultor_id}</FormErrorMessage>
                   </FormControl>
                 )}</Field>
               </ModalBody>

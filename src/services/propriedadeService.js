@@ -1,8 +1,6 @@
-// src/services/propriedadeService.js
-
 import api from './api';
 
-// Função para buscar TODAS as propriedades (READ)
+// Função para buscar TODAS as propriedades de todos os agricultores (READ)
 export const getPropriedades = () => {
     return api.get('/propriedades');
 };
@@ -12,9 +10,10 @@ export const getPropriedadeById = (id) => {
     return api.get(`/propriedades/${id}`);
 };
 
-// Função para CRIAR uma nova propriedade (CREATE)
-export const createPropriedade = (data) => {
-    return api.post('/propriedades', data);
+// CORREÇÃO: Para criar uma propriedade, precisamos de saber a qual agricultor ela pertence.
+// A função agora espera o ID do agricultor e os dados da propriedade.
+export const createPropriedade = (agricultorId, data) => {
+    return api.post(`/agricultores/${agricultorId}/propriedades`, data);
 };
 
 // Função para ATUALIZAR uma propriedade existente (UPDATE)
@@ -25,4 +24,4 @@ export const updatePropriedade = (id, data) => {
 // Função para DELETAR uma propriedade (DELETE)
 export const deletePropriedade = (id) => {
     return api.delete(`/propriedades/${id}`);
-};
+    };
