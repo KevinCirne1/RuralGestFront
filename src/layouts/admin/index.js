@@ -60,7 +60,7 @@ export default function AdminLayout(props) {
             {getAdminRoutes(routes).map((prop, key) => (
               <Route
                 path={prop.path.replace("/admin", "")}
-                // CORREÇÃO: Renderiza o componente como um elemento JSX
+                
                 element={<prop.component />}
                 key={key}
               />

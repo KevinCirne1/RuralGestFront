@@ -10,7 +10,7 @@ import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import { getServicos, createServico, updateServico, deleteServico } from "services/servicoService";
 
-// CORREÇÃO: Removido o campo 'capacidade_hectares' da validação
+
 const ServicoSchema = Yup.object().shape({
   nome_servico: Yup.string().required('O nome do serviço é obrigatório'),
   descricao: Yup.string(),
@@ -47,7 +47,7 @@ export default function ServicosPage() {
     onFormOpen();
   };
 
-  // CORREÇÃO: Simplificado o handleSubmit para enviar apenas os valores do formulário
+  
   const handleSubmit = async (values, actions) => {
     try {
       if (servicoSelecionado) {
@@ -108,14 +108,14 @@ export default function ServicosPage() {
           <Button colorScheme='brand' onClick={() => handleOpenForm()}>Novo Serviço</Button>
         </Flex>
         <Table variant='simple'>
-          {/* CORREÇÃO: Removida a coluna 'Capacidade (ha)' */}
+          {/*  */}
           <Thead><Tr><Th>Nome do Serviço</Th><Th>Descrição</Th><Th>Ações</Th></Tr></Thead>
           <Tbody>
             {servicos.map((servico) => (
               <Tr key={servico.id}>
                 <Td>{servico.nome_servico}</Td>
                 <Td>{servico.descricao}</Td>
-                {/* CORREÇÃO: Removida a célula da capacidade */}
+                {/* */}
                 <Td>
                   <Button size='sm' mr='10px' onClick={() => handleOpenForm(servico)}><Icon as={MdEdit} /></Button>
                   <Button size='sm' colorScheme='red' onClick={() => handleAbrirModalExclusao(servico)}><Icon as={MdDelete} /></Button>
@@ -127,7 +127,7 @@ export default function ServicosPage() {
       </Card>
 
       <Formik
-        // CORREÇÃO: Removido 'capacidade_hectares' dos valores iniciais
+        
         initialValues={servicoSelecionado || { nome_servico: '', descricao: '' }}
         validationSchema={ServicoSchema}
         onSubmit={handleSubmit}
@@ -141,7 +141,7 @@ export default function ServicosPage() {
                 <ModalBody>
                   <Field name='nome_servico'>{({ field, form }) => (<FormControl isInvalid={form.errors.nome_servico && form.touched.nome_servico}><FormLabel>Nome do Serviço</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.nome_servico}</FormErrorMessage></FormControl>)}</Field>
                   <Field name='descricao'>{({ field, form }) => (<FormControl mt={4} isInvalid={form.errors.descricao && form.touched.descricao}><FormLabel>Descrição</FormLabel><Textarea {...field} /><FormErrorMessage>{form.errors.descricao}</FormErrorMessage></FormControl>)}</Field>
-                  {/* CORREÇÃO: Removido o campo 'capacidade_hectares' do formulário */}
+                  {/*  */}
                 </ModalBody>
                 <ModalFooter>
                   <Button colorScheme='brand' mr={3} isLoading={props.isSubmitting} type='submit'>Salvar</Button>

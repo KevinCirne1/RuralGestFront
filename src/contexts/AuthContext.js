@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-// A URL base do nosso back-end
+// A URL base do back-end
 const API_URL = "http://127.0.0.1:5000";
 
 const AuthContext = createContext();
@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // useEffect para carregar dados do localStorage quando a aplicação inicia
+  
   useEffect(() => {
     const storedAuthData = localStorage.getItem('authData');
     if (storedAuthData) {
@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // Função de Login (SIMPLIFICADA)
+  // Função de Login
   const login = async (login, senha) => {
     try {
       const response = await axios.post(`${API_URL}/login`, {
@@ -29,24 +29,24 @@ export const AuthProvider = ({ children }) => {
         senha: senha,
       });
 
-      // O back-end agora devolve diretamente os dados do utilizador
+      
       const userData = response.data;
       
       const newAuthData = {
-        // Já não temos token, guardamos apenas os dados do utilizador
+       
         user: userData,
       };
 
-      // Guardamos no localStorage para persistir a sessão
+      
       localStorage.setItem('authData', JSON.stringify(newAuthData));
-      // Guardamos no estado para a UI reagir
+      
       setAuthData(newAuthData);
 
-      // Redirecionamos com base no perfil
+      
       if (newAuthData.user.perfil === 'gestor') {
-        navigate('/admin/default'); // Rota para o painel de admin
+        navigate('/admin/default'); 
       } else {
-        navigate('/'); // Rota padrão para outros perfis
+        navigate('/'); 
       }
 
     } catch (error) {
@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Função de Logout (continua igual)
+  // Função de Logout 
   const logout = () => {
     localStorage.removeItem('authData');
     setAuthData(null);
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// Hook customizado para usar o contexto
+
 export const useAuth = () => {
   return useContext(AuthContext);
 };

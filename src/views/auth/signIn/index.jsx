@@ -5,7 +5,7 @@ import {
   Box, Button, Flex, FormControl, FormLabel, FormErrorMessage, Heading, Icon,
   Input, InputGroup, InputRightElement, Text, useColorModeValue, useToast
 } from '@chakra-ui/react';
-// <<< ALTERAÇÃO 1: Adicionado 'Navigate' na importação
+
 import { NavLink, Navigate } from 'react-router-dom'; 
 import DefaultAuth from 'layouts/auth/Default';
 import illustration from 'assets/img/auth/auth.png';
@@ -24,7 +24,7 @@ function SignIn() {
   const handleClick = () => setShow(!show);
   const toast = useToast();
 
-  // <<< ALTERAÇÃO 2: Pegamos também o 'authData' do contexto
+  
   const { login, authData } = useAuth(); 
 
   const handleLogin = async (values, actions) => {
@@ -50,8 +50,7 @@ function SignIn() {
     }
   };
 
-  // <<< ALTERAÇÃO 3: Adicionamos o bloco de verificação e redirecionamento
-  // Se o usuário já estiver logado, ele será redirecionado antes de ver o formulário.
+  
   if (authData) {
     if (authData.user.perfil === 'produtor') {
       return <Navigate to="/produtor" replace />;

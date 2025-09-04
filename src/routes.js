@@ -8,9 +8,8 @@ import { MdPerson, MdHome, MdLandscape, MdBuild, MdLock, MdAssignment } from 're
 import MainDashboard from 'views/admin/dashboard';
 import Agricultores from 'views/admin/Agricultores';
 import Propriedades from 'views/admin/Propriedades';
-import Servicos from 'views/admin/Servicos'; // A NOVA tela do catálogo
-import Solicitacoes from 'views/admin/Solicitacoes'; // A tela que foi RENOMEADA
-
+import Servicos from 'views/admin/Servicos'; 
+import Solicitacoes from 'views/admin/Solicitacoes';
 // Auth Imports
 import SignIn from 'views/auth/signIn';
 import SignUp from 'views/auth/signUp';
@@ -39,20 +38,20 @@ const routes = [
     component: Propriedades,
   },
   {
-    name: 'Solicitações', // <<< RENOMEADO
+    name: 'Solicitações', 
     layout: '/admin',
-    path: '/solicitacoes', // <<< CAMINHO ATUALIZADO
+    path: '/solicitacoes', 
     icon: <Icon as={MdAssignment} width="20px" height="20px" color="inherit" />, // Ícone novo
-    component: Solicitacoes, // Aponta para o componente na pasta renomeada
+    component: Solicitacoes, 
   },
   {
-    name: 'Serviços', // <<< NOVO ITEM DE MENU (O Catálogo)
+    name: 'Serviços', 
     layout: '/admin',
     path: '/servicos',
     icon: <Icon as={MdBuild} width="20px" height="20px" color="inherit" />,
-    component: Servicos, // Aponta para o novo CRUD de Serviços
+    component: Servicos, 
   },
-  // --- ROTAS DE AUTENTICAÇÃO (Não aparecem no menu, mas são usadas) ---
+  // --- ROTAS DE AUTENTICAÇÃO ---
   {
     name: 'Sign In',
     layout: '/auth',

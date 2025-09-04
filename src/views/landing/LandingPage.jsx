@@ -21,7 +21,7 @@ export default function LandingPage() {
           e execução de serviços de forma moderna e eficiente.
         </Text>
         <Stack spacing={6} direction={"row"} justify="center">
-          {/* CORREÇÃO: Usando um botão com uma tag <a> que aponta para a rota correta */}
+          {/* */}
           <Button
             as="a"
             href="/#/auth/sign-in"

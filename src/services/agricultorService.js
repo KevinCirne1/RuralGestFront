@@ -1,6 +1,6 @@
-// src/services/agricultorService.js
 
-import api from "./api"; // Configuração base do Axios
+
+import api from "./api"; 
 
 // Buscar TODOS os agricultores (READ)
 export const getAgricultores = () => {
@@ -27,12 +27,12 @@ export const deleteAgricultor = (id) => {
   return api.delete(`/agricultores/${id}`);
 };
 
-// 🔹 Buscar propriedades de um agricultor específico
+//  Buscar propriedades de um agricultor específico
 export const getPropriedadesByAgricultor = (agricultorId) => {
   return api.get(`/agricultores/${agricultorId}/propriedades`);
 };
 
-// 🔹 Criar propriedade para um agricultor específico
+//  Criar propriedade para um agricultor específico
 export const createPropriedadeForAgricultor = (agricultorId, data) => {
   return api.post(`/agricultores/${agricultorId}/propriedades`, data);
 };

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, SimpleGrid, Text } from '@chakra-ui/react';
 import DefaultCard from 'components/card/Default';
 
-// Importa os serviços necessários
+
 import { getAgricultores } from 'services/agricultorService';
 import { getPropriedades } from 'services/propriedadeService';
 import { getSolicitacoes } from 'services/solicitacaoService';

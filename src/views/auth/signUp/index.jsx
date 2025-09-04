@@ -13,7 +13,7 @@ import { RiEyeCloseLine } from 'react-icons/ri';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 
-// <<< IMPORTAÇÃO NECESSÁRIA PARA CADASTRAR O USUÁRIO
+
 import { createUsuario } from 'services/usuarioService';
 
 import { useAuth } from 'contexts/AuthContext';
@@ -28,14 +28,14 @@ function SignUp() {
   
   const { authData } = useAuth();
 
-  // <<< ALTERAÇÃO NA LÓGICA DE CADASTRO
+  
   const handleRegister = async (values, actions) => {
     try {
       const newUser = {
         nome: values.nome,
         login: values.login,
-        senha: values.senha, // NOTE: Em um projeto real, a senha deveria ser hash
-        perfil: 'produtor' // Define o perfil padrão para 'produtor'
+        senha: values.senha, 
+        perfil: 'produtor' 
       };
       
       await createUsuario(newUser);
@@ -49,7 +49,7 @@ function SignUp() {
       });
 
       actions.setSubmitting(false);
-      // Redireciona o usuário para a página de login
+      
       window.location.href = '/auth/sign-in';
       
     } catch (error) {

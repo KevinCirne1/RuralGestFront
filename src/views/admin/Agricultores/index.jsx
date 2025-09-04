@@ -1,4 +1,4 @@
-// src/views/admin/Agricultores/index.jsx
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Box, Flex, Button, Icon, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
@@ -52,10 +52,9 @@ export default function AgricultoresPage() {
   const handleSubmit = async (values, actions) => {
     try {
       if (agricultorSelecionado) {
-        // LÓGICA DE ATUALIZAÇÃO (PUT)
+       
         
-        // CORREÇÃO: Criamos um novo objeto apenas com os campos do formulário
-        // para garantir que não enviamos dados extra como 'id' ou 'data_atualizacao_cadastro'.
+
         const dadosParaAtualizar = {
           nome: values.nome,
           cpf: values.cpf,
@@ -66,14 +65,14 @@ export default function AgricultoresPage() {
         await updateAgricultor(agricultorSelecionado.id, dadosParaAtualizar);
         toast({ title: "Agricultor atualizado com sucesso!", status: "success", duration: 5000, isClosable: true });
       } else {
-        // LÓGICA DE CRIAÇÃO (POST)
+        
         await createAgricultor(values);
         toast({ title: "Agricultor cadastrado com sucesso!", status: "success", duration: 5000, isClosable: true });
       }
       
       actions.setSubmitting(false);
       onFormClose();
-      fetchAgricultores(); // Recarrega a lista para mostrar a atualização
+      fetchAgricultores(); 
     } catch (error) {
       toast({ title: "Erro na operação.", description: error.message, status: "error", duration: 5000, isClosable: true });
       actions.setSubmitting(false);
@@ -134,7 +133,7 @@ export default function AgricultoresPage() {
         initialValues={agricultorSelecionado || { nome: '', cpf: '', comunidade: '', contato: '' }}
         validationSchema={SignupSchema}
         onSubmit={handleSubmit}
-        enableReinitialize // Essencial para que o formulário seja preenchido com novos valores
+        enableReinitialize 
       >
         {(props) => (
           <Modal isOpen={isFormOpen} onClose={onFormClose}>

@@ -7,23 +7,23 @@ import {
 } from "@chakra-ui/react";
 import Card from "components/card/Card.js";
 
-// <<< MUDANÇA 1: Importações Corrigidas >>>
+
 import { useAuth } from "contexts/AuthContext";
 import { getSolicitacoes } from "services/solicitacaoService";
-import { getServicos } from "services/servicoService"; // Precisamos para saber o nome do serviço
+import { getServicos } from "services/servicoService"; 
 
 export default function MinhasSolicitacoes() {
   const [solicitacoes, setSolicitacoes] = useState([]);
-  const [servicos, setServicos] = useState([]); // Estado para guardar o catálogo de serviços
+  const [servicos, setServicos] = useState([]); 
   const [loading, setLoading] = useState(true);
   const textColor = useColorModeValue("secondaryGray.900", "white");
   const toast = useToast();
 
-  // <<< MUDANÇA 2: Pega os dados do usuário logado >>>
+  
   const { authData } = useAuth();
   const agricultorLogado = authData?.user;
 
-  // <<< MUDANÇA 3: useEffect agora busca as solicitações E os serviços >>>
+  
   const fetchPageData = useCallback(async () => {
     if (!agricultorLogado) return;
     setLoading(true);
@@ -34,11 +34,11 @@ export default function MinhasSolicitacoes() {
         getServicos()
       ]);
       
-      // Filtramos no frontend para mostrar apenas as do agricultor logado
+      
       const minhasSolicitacoes = solicitacoesRes.data.filter(sol => sol.agricultor_id === agricultorLogado.id);
       
       setSolicitacoes(minhasSolicitacoes);
-      setServicos(servicosRes.data); // Guardamos o catálogo de serviços
+      setServicos(servicosRes.data); 
 
     } catch (error) {
       toast({ title: "Erro ao buscar solicitações.", status: "error", duration: 5000, isClosable: true });

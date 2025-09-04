@@ -10,7 +10,7 @@ import { Link } from "react-router-dom";
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 
-// <<< MUDANÇA 1: Importações dos serviços e contexto >>>
+
 import { useAuth } from "contexts/AuthContext";
 import { getServicos } from "services/servicoService";
 import { getPropriedadesByAgricultor } from "services/agricultorService";
@@ -26,20 +26,20 @@ export default function DashboardProdutor() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
-  // <<< MUDANÇA 2: Pega os dados do usuário logado >>>
+  
   const { authData } = useAuth();
   const agricultorLogado = authData?.user;
 
   const [propriedades, setPropriedades] = useState([]);
   const [servicos, setServicos] = useState([]);
 
-  // <<< MUDANÇA 3: Busca os dados reais para os formulários >>>
+  
   const fetchInitialData = useCallback(async () => {
-    // Só busca os dados se tiver um agricultor logado
+    
     if (!agricultorLogado) return;
 
     try {
-      // Faz as duas chamadas à API em paralelo
+      
       const [propriedadesRes, servicosRes] = await Promise.all([
         getPropriedadesByAgricultor(agricultorLogado.id),
         getServicos()
@@ -103,7 +103,7 @@ export default function DashboardProdutor() {
         </SimpleGrid>
       </Box>
 
-      {/* <<< MUDANÇA 5: O formulário agora é preenchido com dados da API >>> */}
+      {/*  */}
       <Formik
         initialValues={{ servicoId: '', propriedadeId: '' }}
         validationSchema={RequestSchema}
@@ -121,7 +121,7 @@ export default function DashboardProdutor() {
                       <FormControl isInvalid={form.errors.servicoId && form.touched.servicoId}>
                         <FormLabel>Tipo de Serviço</FormLabel>
                         <Select {...field} placeholder="Selecione o serviço desejado">
-                          {/* Opções de serviço vêm da API */}
+                          {/*  */}
                           {servicos.map(serv => (
                             <option key={serv.id} value={serv.id}>{serv.nome_servico}</option>
                           ))}

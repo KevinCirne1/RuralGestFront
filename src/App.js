@@ -6,14 +6,14 @@ import { ChakraProvider } from '@chakra-ui/react';
 import initialTheme from './theme/theme';
 import { useState } from 'react';
 
-// IMPORTAÇÕES ADICIONADAS
+
 import { AuthProvider } from './contexts/AuthContext';
 import LandingPage from './views/landing/LandingPage';
 import AuthLayout from './layouts/auth';
 import AdminLayout from './layouts/admin';
 import ProdutorLayout from './layouts/produtor';
 
-// Importe seus componentes
+
 import MainDashboard from 'views/admin/dashboard';
 import Agricultores from 'views/admin/Agricultores';
 import Propriedades from 'views/admin/Propriedades';
@@ -32,7 +32,7 @@ export default function Main() {
           {/* Rotas Públicas */}
           <Route path="/" element={<LandingPage />} />
           
-          {/* Rotas de Autenticação (Aninhadas) */}
+          {/* Rotas de Autenticação  */}
           <Route path="/auth" element={<AuthLayout />}>
             <Route path="sign-in" element={<SignIn />} />
             <Route path="sign-up" element={<SignUp />} />
@@ -51,7 +51,7 @@ export default function Main() {
           
           {/* Rota Protegida (Produtor) */}
           <Route path="/produtor" element={<ProdutorLayout />}>
-            {/* Adicione as rotas da Tela do Produtor aqui quando criá-las */}
+            {/*  */}
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
 

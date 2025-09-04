@@ -10,7 +10,7 @@ export const getPropriedadeById = (id) => {
     return api.get(`/propriedades/${id}`);
 };
 
-// CORREÇÃO: Para criar uma propriedade, precisamos de saber a qual agricultor ela pertence.
+
 // A função agora espera o ID do agricultor e os dados da propriedade.
 export const createPropriedade = (agricultorId, data) => {
     return api.post(`/agricultores/${agricultorId}/propriedades`, data);

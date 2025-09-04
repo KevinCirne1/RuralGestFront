@@ -9,10 +9,10 @@ import Card from "components/card/Card.js";
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 
-// Importa o serviço de usuários
+
 import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from "services/usuarioService";
 
-// Esquema de Validação para Usuários
+
 const SignupSchema = Yup.object().shape({
   nome: Yup.string().required('O nome é obrigatório'),
   login: Yup.string().required('O login é obrigatório'),
@@ -56,7 +56,7 @@ export default function UsuariosPage() {
         .catch(error => { toast({ title: "Erro ao atualizar usuário.", status: "error", duration: 5000, isClosable: true }); })
         .finally(() => { actions.setSubmitting(false); });
     } else {
-      // LÓGICA DE CRIAÇÃO
+      
       createUsuario(values)
         .then(response => {
           toast({ title: "Usuário cadastrado com sucesso!", status: "success", duration: 5000, isClosable: true });
@@ -82,7 +82,7 @@ export default function UsuariosPage() {
         fetchUsuarios();
       })
       .catch(error => { toast({ title: "Erro ao excluir usuário.", status: "error", duration: 5000, isClosable: true }); })
-      .finally(() => { onDeleteClose(); }); // A CORREÇÃO ESTÁ AQUI
+      .finally(() => { onDeleteClose(); }); 
 };
 
   if (loading) return (<Flex justify='center' align='center' height='50vh'><Spinner size='xl' /></Flex>);

@@ -9,7 +9,7 @@ import Card from "components/card/Card.js";
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 
-// Importa todos os serviços de API necessários
+
 import { getAgricultores } from "services/agricultorService";
 import { getServicos } from "services/servicoService";
 import { getPropriedades } from "services/propriedadeService";
@@ -128,7 +128,7 @@ export default function SolicitacoesPage() {
           <Thead><Tr><Th>Serviço</Th><Th>Agricultor</Th><Th>Propriedade</Th><Th>Data da Solicitação</Th><Th>Status</Th><Th>Ações</Th></Tr></Thead>
           <Tbody>
             {solicitacoes.map((sol) => {
-              // CORREÇÃO: Usamos os objetos aninhados que vêm diretamente da API, em vez de usar .find()
+              
               const { agricultor, servico, propriedade } = sol;
               return (
                 <Tr key={sol.id}>

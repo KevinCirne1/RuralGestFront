@@ -17,7 +17,7 @@ const SignupSchema = Yup.object().shape({
   area_total: Yup.number().required('A área total é obrigatória'),
   area_exploravel: Yup.number().required('A área explorável é obrigatória'),
   coordenadas_geograficas: Yup.string().required('As coordenadas são obrigatórias'),
-  agricultor_id: Yup.string().required('É preciso selecionar um agricultor'), // Corrigido para agricultor_id
+  agricultor_id: Yup.string().required('É preciso selecionar um agricultor'), 
 });
 
 export default function PropriedadesPage() {
@@ -58,15 +58,15 @@ export default function PropriedadesPage() {
 
   const handleSubmit = async (values, actions) => {
     try {
-      // CORREÇÃO: Separamos o ID do agricultor do resto dos dados da propriedade.
+      
       const { agricultor_id, ...dadosPropriedade } = values;
 
       if (propriedadeSelecionada) {
-        // Na atualização, a API não espera o agricultor_id na URL.
-        await updatePropriedade(propriedadeSelecionada.id, values); // 'values' já contém o agricultor_id que pode ser atualizado.
+        
+        await updatePropriedade(propriedadeSelecionada.id, values); 
         toast({ title: "Propriedade atualizada com sucesso!", status: "success", duration: 5000, isClosable: true });
       } else {
-        // CORREÇÃO: Passamos o agricultor_id e os dados da propriedade como argumentos separados.
+       
         await createPropriedade(agricultor_id, dadosPropriedade);
         toast({ title: "Propriedade cadastrada com sucesso!", status: "success", duration: 5000, isClosable: true });
       }
