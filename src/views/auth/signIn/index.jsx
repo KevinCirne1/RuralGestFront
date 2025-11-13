@@ -8,13 +8,15 @@ import {
 
 import { NavLink, Navigate } from 'react-router-dom'; 
 import DefaultAuth from 'layouts/auth/Default';
-import illustration from 'assets/img/auth/auth.png';
+
 import { MdOutlineRemoveRedEye } from 'react-icons/md';
 import { RiEyeCloseLine } from 'react-icons/ri';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 
 import { useAuth } from 'contexts/AuthContext';
+const illustration = null;
+
 
 function SignIn() {
   const textColor = useColorModeValue('navy.700', 'white');

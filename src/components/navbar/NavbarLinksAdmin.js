@@ -3,7 +3,6 @@ import {
   Button,
   Flex,
   Icon,
-  Image,
   Link,
   Menu,
   MenuButton,
@@ -19,23 +18,15 @@ import { SidebarResponsive } from 'components/sidebar/Sidebar';
 import PropTypes from 'prop-types';
 import React from 'react';
 // Assets
-import navImage from 'assets/img/layout/Navbar.png';
-import { MdNotificationsNone, MdInfoOutline } from 'react-icons/md';
+import { MdNotificationsNone } from 'react-icons/md';
 import { IoMdMoon, IoMdSunny } from 'react-icons/io';
-import { FaEthereum } from 'react-icons/fa';
 import routes from 'routes';
-// ==============================================================================
-// CORREÇÃO: Importamos o nosso hook de autenticação
-// ==============================================================================
 import { useAuth } from 'contexts/AuthContext';
 
 
 export default function HeaderLinks(props) {
   const { secondary } = props;
   const { colorMode, toggleColorMode } = useColorMode();
-  // ==============================================================================
-  // CORREÇÃO: Usamos o hook para aceder aos dados do utilizador e à função de logout
-  // ==============================================================================
   const { authData, logout } = useAuth();
 
 
@@ -44,15 +35,11 @@ export default function HeaderLinks(props) {
   let menuBg = useColorModeValue('white', 'navy.800');
   const textColor = useColorModeValue('secondaryGray.900', 'white');
   const textColorBrand = useColorModeValue('brand.700', 'brand.400');
-  const ethColor = useColorModeValue('gray.700', 'white');
-  const borderColor = useColorModeValue('#E6ECFA', 'rgba(135, 140, 189, 0.3)');
-  const ethBg = useColorModeValue('secondaryGray.300', 'navy.900');
-  const ethBox = useColorModeValue('white', 'navy.800');
   const shadow = useColorModeValue(
     '14px 17px 40px 4px rgba(112, 144, 176, 0.18)',
     '14px 17px 40px 4px rgba(112, 144, 176, 0.06)',
   );
-  const borderButton = useColorModeValue('secondaryGray.500', 'whiteAlpha.200');
+  
   return (
     <Flex
       w={{ sm: '100%', md: 'auto' }}
@@ -74,41 +61,8 @@ export default function HeaderLinks(props) {
         me="10px"
         borderRadius="30px"
       />
-      <Flex
-        bg={ethBg}
-        display={secondary ? 'flex' : 'none'}
-        borderRadius="30px"
-        ms="auto"
-        p="6px"
-        align="center"
-        me="6px"
-      >
-        <Flex
-          align="center"
-          justify="center"
-          bg={ethBox}
-          h="29px"
-          w="29px"
-          borderRadius="30px"
-          me="7px"
-        >
-          <Icon color={ethColor} w="9px" h="14px" as={FaEthereum} />
-        </Flex>
-        <Text
-          w="max-content"
-          color={ethColor}
-          fontSize="sm"
-          fontWeight="700"
-          me="6px"
-        >
-          1,924
-          <Text as="span" display={{ base: 'none', md: 'unset' }}>
-            {' '}
-            ETH
-          </Text>
-        </Text>
-      </Flex>
       <SidebarResponsive routes={routes} />
+      
       <Menu>
         <MenuButton p="0px">
           <Icon
@@ -133,7 +87,7 @@ export default function HeaderLinks(props) {
         >
           <Flex w="100%" mb="20px">
             <Text fontSize="md" fontWeight="600" color={textColor}>
-              Notifications
+              Notificações
             </Text>
             <Text
               fontSize="sm"
@@ -142,7 +96,7 @@ export default function HeaderLinks(props) {
               ms="auto"
               cursor="pointer"
             >
-              Mark all read
+              Marcar todas como lidas
             </Text>
           </Flex>
           <Flex flexDirection="column">
@@ -154,74 +108,11 @@ export default function HeaderLinks(props) {
               mb="10px"
             >
               <Flex align='center'>
-                <Icon as={MdInfoOutline} h='16px' w='16px' me='8px' />
                 <Text fontSize='sm' fontWeight='400'>
                   Nova notificação
                 </Text>
               </Flex>
             </MenuItem>
-          </Flex>
-        </MenuList>
-      </Menu>
-
-      <Menu>
-        <MenuButton p="0px">
-          <Icon
-            mt="6px"
-            as={MdInfoOutline}
-            color={navbarIcon}
-            w="18px"
-            h="18px"
-            me="10px"
-          />
-        </MenuButton>
-        <MenuList
-          boxShadow={shadow}
-          p="20px"
-          me={{ base: '30px', md: 'unset' }}
-          borderRadius="20px"
-          bg={menuBg}
-          border="none"
-          mt="22px"
-          minW={{ base: 'unset' }}
-          maxW={{ base: '360px', md: 'unset' }}
-        >
-          <Image src={navImage} borderRadius="16px" mb="28px" />
-          <Flex flexDirection="column">
-            <Link w="100%" href="https://horizon-ui.com/pro">
-              <Button w="100%" h="44px" mb="10px" variant="brand">
-                Buy Horizon UI PRO
-              </Button>
-            </Link>
-            <Link
-              w="100%"
-              href="https://horizon-ui.com/documentation/docs/introduction"
-            >
-              <Button
-                w="100%"
-                h="44px"
-                mb="10px"
-                border="1px solid"
-                bg="transparent"
-                borderColor={borderButton}
-              >
-                See Documentation
-              </Button>
-            </Link>
-            <Link
-              w="100%"
-              href="https://github.com/horizon-ui/horizon-ui-chakra-ts"
-            >
-              <Button
-                w="100%"
-                h="44px"
-                variant="no-hover"
-                color={textColor}
-                bg="transparent"
-              >
-                Try Horizon Free
-              </Button>
-            </Link>
           </Flex>
         </MenuList>
       </Menu>
@@ -249,7 +140,6 @@ export default function HeaderLinks(props) {
           <Avatar
             _hover={{ cursor: 'pointer' }}
             color="white"
-            // CORREÇÃO: Usamos o nome do utilizador logado
             name={authData?.user?.nome || 'Utilizador'}
             bg="#11047A"
             size="sm"
@@ -272,12 +162,11 @@ export default function HeaderLinks(props) {
               pb="10px"
               w="100%"
               borderBottom="1px solid"
-              borderColor={borderColor}
+              borderColor={useColorModeValue('gray.200', 'whiteAlpha.300')}
               fontSize="sm"
               fontWeight="700"
               color={textColor}
             >
-              {/* CORREÇÃO: Mostramos o nome do utilizador dinamicamente */}
               👋&nbsp; Olá, {authData?.user?.nome || 'Utilizador'}
             </Text>
           </Flex>
@@ -288,19 +177,8 @@ export default function HeaderLinks(props) {
               borderRadius="8px"
               px="14px"
             >
-              <Text fontSize="sm">Profile Settings</Text>
+              <Text fontSize="sm">Configurações do Perfil</Text>
             </MenuItem>
-            <MenuItem
-              _hover={{ bg: 'none' }}
-              _focus={{ bg: 'none' }}
-              borderRadius="8px"
-              px="14px"
-            >
-              <Text fontSize="sm">Newsletter Settings</Text>
-            </MenuItem>
-            {/* ============================================================================== */}
-            {/* CORREÇÃO: Adicionamos o onClick para chamar a função de logout */}
-            {/* ============================================================================== */}
             <MenuItem
               _hover={{ bg: 'none' }}
               _focus={{ bg: 'none' }}
@@ -309,7 +187,7 @@ export default function HeaderLinks(props) {
               px="14px"
               onClick={logout}
             >
-              <Text fontSize="sm">Log out</Text>
+              <Text fontSize="sm">Sair</Text>
             </MenuItem>
           </Flex>
         </MenuList>

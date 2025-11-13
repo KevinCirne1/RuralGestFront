@@ -1,19 +1,15 @@
-/*eslint-disable*/
 import React from "react";
 import {
   Flex,
   Link,
-  List,
-  ListItem,
   Text,
-  Button,
-  useColorMode,
   useColorModeValue,
+  Stack, // Importamos o Stack
 } from "@chakra-ui/react";
 
 export default function Footer() {
   const textColor = useColorModeValue("gray.400", "white");
-  const { toggleColorMode } = useColorMode();
+
   return (
     <Flex
       zIndex='3'
@@ -27,74 +23,40 @@ export default function Footer() {
       }}
       justifyContent='space-between'
       px={{ base: "30px", md: "50px" }}
-      pb='30px'>
+      pb='30px'
+    >
+      {/* BLOCO 1: COPYRIGHT E ATRIBUIÇÃO */}
       <Text
         color={textColor}
         textAlign={{
           base: "center",
           xl: "start",
         }}
-        mb={{ base: "20px", xl: "0px" }}>
-        {" "}
-        &copy; {1900 + new Date().getYear()}
+        mb={{ base: "20px", xl: "0px" }}
+      >
+        © {new Date().getFullYear()} Sistema de Gestão Rural – Pirpirituba.
         <Text as='span' fontWeight='500' ms='4px'>
-          Horizon UI. All Rights Reserved. Made with love by
-          <Link
-            mx='3px'
-            color={textColor}
-            href='https://www.simmmple.com?ref=horizon-chakra-free'
-            target='_blank'
-            fontWeight='700'>
-            Simmmple!
-          </Link>
+          Desenvolvido com base no template Horizon UI Chakra.
         </Text>
       </Text>
-      <List display='flex'>
-        <ListItem
-          me={{
-            base: "20px",
-            md: "44px",
-          }}>
-          <Link
-            fontWeight='500'
-            color={textColor}
-            href='mailto:hello@simmmple.com'>
-            Support
-          </Link>
-        </ListItem>
-        <ListItem
-          me={{
-            base: "20px",
-            md: "44px",
-          }}>
-          <Link
-            fontWeight='500'
-            color={textColor}
-            href='https://www.simmmple.com/licenses?ref=horizon-chakra-free'>
-            License
-          </Link>
-        </ListItem>
-        <ListItem
-          me={{
-            base: "20px",
-            md: "44px",
-          }}>
-          <Link
-            fontWeight='500'
-            color={textColor}
-            href='https://simmmple.com/terms-of-service?ref=horizon-chakra-free'>
-            Terms of Use
-          </Link>
-        </ListItem>
-        <ListItem>
-          <Link
-            fontWeight='500'
-            color={textColor}
-            href='https://www.blog.simmmple.com/?ref=horizon-chakra-free'>
-            Blog
-          </Link>
-        </ListItem>
-      </List>
+      
+      {/* BLOCO 2: LINKS USANDO STACK */}
+      <Stack
+        direction={{ base: 'column', lg: 'row' }} // FORÇA a direção coluna em telas pequenas
+        spacing={{ base: '10px', lg: '44px' }}     // Controla o espaçamento entre os links
+        alignItems="center"                        // Centraliza os links em telas pequenas
+      >
+        {/* Usamos <Link> diretamente no Stack */}
+        <Link fontWeight='500' color={textColor} href='#/contato'>
+          Contato
+        </Link>
+        <Link fontWeight='500' color={textColor} href='#/sobre-o-projeto'>
+          Sobre o Projeto
+        </Link>
+        <Link fontWeight='500' color={textColor} href='#/politica-de-privacidade'>
+          Política de Privacidade
+        </Link>
+      </Stack>
     </Flex>
   );
 }
