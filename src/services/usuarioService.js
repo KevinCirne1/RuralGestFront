@@ -2,17 +2,17 @@
 
 import api from './api';
 
-// Função para buscar TODOS os usuários (READ)
+// Função para buscar TODOS os usuários(READ)
 export const getUsuarios = () => {
     return api.get('/usuarios');
 };
 
-// Função para buscar UM usuário por ID (READ)
+// Função para buscar UM usuário por  ID(READ)
 export const getUsuarioById = (id) => {
     return api.get(`/usuarios/${id}`);
 };
 
-// Função para CRIAR um novo usuário (CREATE)
+// Função para CRIAR um novo usuário(CREATE)
 export const createUsuario = (data) => {
     return api.post('/usuarios', data);
 };
