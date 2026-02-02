@@ -6,13 +6,11 @@ import { ChakraProvider } from '@chakra-ui/react';
 import initialTheme from './theme/theme';
 import { useState } from 'react';
 
-
 import { AuthProvider } from './contexts/AuthContext';
 import LandingPage from './views/landing/LandingPage';
 import AuthLayout from './layouts/auth';
 import AdminLayout from './layouts/admin';
 import ProdutorLayout from './layouts/produtor';
-
 
 import MainDashboard from 'views/admin/dashboard';
 import Agricultores from 'views/admin/Agricultores';
@@ -49,11 +47,9 @@ export default function Main() {
             <Route path="*" element={<Navigate to="default" replace />} />
           </Route>
           
-          {/* Rota Protegida (Produtor) */}
-          <Route path="/produtor" element={<ProdutorLayout />}>
-            {/*  */}
-            <Route path="*" element={<Navigate to="/admin" replace />} />
-          </Route>
+          {/* Rota Protegida (Produtor) - CORRIGIDO AQUI */}
+          {/* O asterisco (*) permite que o ProdutorLayout gerencie suas próprias sub-rotas */}
+          <Route path="/produtor/*" element={<ProdutorLayout />} />
 
           {/* Rota de fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

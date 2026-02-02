@@ -3,29 +3,54 @@ import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
 // chakra imports
 import { Box, Flex, HStack, Text, useColorModeValue } from "@chakra-ui/react";
+// 1. IMPORTAÇÃO DO CONTEXTO DE AUTENTICAÇÃO
+import { useAuth } from "contexts/AuthContext"; 
 
 export function SidebarLinks(props) {
-  //   Chakra color mode
+  //  Chakra color mode
   let location = useLocation();
+  
+  // --- DEFINIÇÃO DE CORES (PADRÃO AZUL/BRAND PARA TODOS) ---
   let activeColor = useColorModeValue("gray.700", "white");
-  let inactiveColor = useColorModeValue(
-    "secondaryGray.600",
-    "secondaryGray.600"
-  );
+  let inactiveColor = useColorModeValue("secondaryGray.600", "secondaryGray.600");
+  // Aqui garantimos que o ícone ativo seja SEMPRE o azul da marca (brand.500)
   let activeIcon = useColorModeValue("brand.500", "white");
   let textColor = useColorModeValue("secondaryGray.500", "white");
+  // Aqui garantimos que a barrinha lateral ativa seja SEMPRE o azul da marca
   let brandColor = useColorModeValue("brand.500", "brand.400");
 
   const { routes } = props;
+
+  // 2. RECUPERAR O PERFIL DO USUÁRIO LOGADO
+  const { authData } = useAuth();
+  const perfilUsuario = authData?.user?.perfil; 
 
   // verifies if routeName is the one active (in browser input)
   const activeRoute = (routeName) => {
     return location.pathname.includes(routeName);
   };
 
-  // this function creates the links from the secondary accordions (for example auth -> sign-in -> default)
   const createLinks = (routes) => {
     return routes.map((route, index) => {
+      
+      // ---------------------------------------------------------
+      // 3. FILTRO DE VISIBILIDADE
+      // ---------------------------------------------------------
+
+      // A. Rotas de Autenticação nunca aparecem
+      if (route.layout === "/auth") return null;
+
+      // B. SE FOR PRODUTOR: Esconde painel de Admin
+      if (perfilUsuario === 'agricultor' || perfilUsuario === 'produtor') {
+         if (route.layout === '/admin') return null;
+      }
+
+      // C. SE FOR ADMIN: Esconde painel de Produtor
+      if (perfilUsuario === 'admin' || perfilUsuario === 'gestor') {
+         if (route.layout === '/produtor') return null;
+      }
+      // ---------------------------------------------------------
+
       if (route.category) {
         return (
           <>
@@ -48,6 +73,7 @@ export function SidebarLinks(props) {
         );
       } else if (
         route.layout === "/admin" ||
+        route.layout === "/produtor" || 
         route.layout === "/auth" ||
         route.layout === "/rtl"
       ) {
@@ -56,9 +82,7 @@ export function SidebarLinks(props) {
             {route.icon ? (
               <Box>
                 <HStack
-                  spacing={
-                    activeRoute(route.path.toLowerCase()) ? "22px" : "26px"
-                  }
+                  spacing={activeRoute(route.path.toLowerCase()) ? "22px" : "26px"}
                   py='5px'
                   ps='10px'>
                   <Flex w='100%' alignItems='center' justifyContent='center'>
@@ -79,9 +103,7 @@ export function SidebarLinks(props) {
                           : textColor
                       }
                       fontWeight={
-                        activeRoute(route.path.toLowerCase())
-                          ? "bold"
-                          : "normal"
+                        activeRoute(route.path.toLowerCase()) ? "bold" : "normal"
                       }>
                       {route.name}
                     </Text>
@@ -91,7 +113,7 @@ export function SidebarLinks(props) {
                     w='4px'
                     bg={
                       activeRoute(route.path.toLowerCase())
-                        ? brandColor
+                        ? brandColor // <--- BARRA AZUL SE ATIVO
                         : "transparent"
                     }
                     borderRadius='5px'
@@ -101,9 +123,7 @@ export function SidebarLinks(props) {
             ) : (
               <Box>
                 <HStack
-                  spacing={
-                    activeRoute(route.path.toLowerCase()) ? "22px" : "26px"
-                  }
+                  spacing={activeRoute(route.path.toLowerCase()) ? "22px" : "26px"}
                   py='5px'
                   ps='10px'>
                   <Text
@@ -118,7 +138,17 @@ export function SidebarLinks(props) {
                     }>
                     {route.name}
                   </Text>
-                  <Box h='36px' w='4px' bg='brand.400' borderRadius='5px' />
+                  {/* CORRIGIDO AQUI: A barra só aparece se estiver ativo */}
+                  <Box 
+                    h='36px' 
+                    w='4px' 
+                    bg={
+                      activeRoute(route.path.toLowerCase())
+                        ? brandColor 
+                        : "transparent"
+                    }
+                    borderRadius='5px' 
+                  />
                 </HStack>
               </Box>
             )}
@@ -127,7 +157,6 @@ export function SidebarLinks(props) {
       }
     });
   };
-  //  BRAND
   return createLinks(routes);
 }
 

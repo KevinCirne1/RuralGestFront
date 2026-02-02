@@ -1,172 +1,274 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
-  Box, Flex, Button, Icon, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
-  Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
-  FormControl, FormLabel, Input, useDisclosure, FormErrorMessage, Spinner, useToast, Textarea
+  Box,
+  Button,
+  Flex,
+  Text,
+  useColorModeValue,
+  SimpleGrid,
+  Icon,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  Input,
+  Textarea,
+  Select,
+  useDisclosure,
+  useToast,
+  IconButton,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  Tooltip 
 } from "@chakra-ui/react";
-import { MdEdit, MdDelete } from "react-icons/md";
-import Card from "components/card/Card.js";
-import { Formik, Form, Field } from 'formik';
-import * as Yup from 'yup';
-import { getServicos, createServico, updateServico, deleteServico } from "services/servicoService";
+import { MdAdd, MdBuild, MdEdit, MdDelete, MdDirectionsCar } from "react-icons/md";
+import Card from "components/card/Card";
+import api from "services/api";
 
-
-const ServicoSchema = Yup.object().shape({
-  nome_servico: Yup.string().required('O nome do serviço é obrigatório'),
-  descricao: Yup.string(),
-});
-
-export default function ServicosPage() {
-  const [servicos, setServicos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
-  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
-  const [servicoParaDeletar, setServicoParaDeletar] = useState(null);
-  const [servicoSelecionado, setServicoSelecionado] = useState(null);
+export default function Servicos() {
   const textColor = useColorModeValue("secondaryGray.900", "white");
+  const iconColor = useColorModeValue("brand.500", "white");
+
+  const [servicos, setServicos] = useState([]);
+  
+  // Estados do Modal
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  
+  // Estados do Alerta de Exclusão
+  const { 
+    isOpen: isDeleteOpen, 
+    onOpen: onDeleteOpen, 
+    onClose: onDeleteClose 
+  } = useDisclosure();
+  const cancelRef = useRef();
+
   const toast = useToast();
 
-  const fetchServicos = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await getServicos();
-      setServicos(response.data);
-    } catch (error) {
-      toast({ title: "Erro ao buscar serviços.", status: "error", duration: 5000, isClosable: true });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  // Estados do Formulário
+  const [idServico, setIdServico] = useState(null);
+  const [nomeServico, setNomeServico] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [tipoVeiculo, setTipoVeiculo] = useState(""); 
 
   useEffect(() => {
-    fetchServicos();
-  }, [fetchServicos]);
+    carregarServicos();
+  }, []);
 
-  const handleOpenForm = (servico = null) => {
-    setServicoSelecionado(servico);
-    onFormOpen();
-  };
-
-  
-  const handleSubmit = async (values, actions) => {
+  const carregarServicos = async () => {
     try {
-      if (servicoSelecionado) {
-        await updateServico(servicoSelecionado.id, values);
-        toast({ title: "Serviço atualizado com sucesso!", status: "success", duration: 5000, isClosable: true });
-      } else {
-        await createServico(values);
-        toast({ title: "Serviço cadastrado com sucesso!", status: "success", duration: 5000, isClosable: true });
-      }
-      actions.setSubmitting(false);
-      onFormClose();
-      fetchServicos();
+      const response = await api.get("/servicos");
+      setServicos(response.data);
     } catch (error) {
-      toast({ title: "Erro na operação.", description: error.message, status: "error", duration: 5000, isClosable: true });
-      actions.setSubmitting(false);
+      console.error("Erro ao buscar serviços", error);
     }
   };
-  
-  const handleAbrirModalExclusao = (servico) => {
-    setServicoParaDeletar(servico);
+
+  const handleNovo = () => {
+    setIdServico(null);
+    setNomeServico("");
+    setDescricao("");
+    setTipoVeiculo(""); 
+    onOpen();
+  };
+
+  const handleEditar = (servico) => {
+    setIdServico(servico.id);
+    setNomeServico(servico.nome_servico);
+    setDescricao(servico.descricao || "");
+    setTipoVeiculo(servico.tipo_veiculo || ""); 
+    onOpen();
+  };
+
+  const handleExcluirConfirmacao = (servico) => {
+    setIdServico(servico.id);
     onDeleteOpen();
   };
 
-  const handleConfirmarExclusao = async () => {
-    if (!servicoParaDeletar) return;
+  const handleSalvar = async () => {
+    if (!nomeServico) {
+      toast({ title: "Nome do serviço obrigatório", status: "warning", duration: 3000, isClosable: true });
+      return;
+    }
+
+    const dados = { 
+        nome_servico: nomeServico, 
+        descricao,
+        tipo_veiculo: tipoVeiculo || null 
+    };
+
     try {
-      await deleteServico(servicoParaDeletar.id);
-      toast({
-        title: "Sucesso!",
-        description: `Serviço "${servicoParaDeletar.nome_servico}" excluído.`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true
-      });
-      onDeleteClose();
-      fetchServicos();
+      if (idServico) {
+        await api.put(`/servicos/${idServico}`, dados);
+        toast({ title: "Serviço atualizado!", status: "success", duration: 3000, isClosable: true });
+      } else {
+        await api.post("/servicos", dados);
+        toast({ title: "Serviço cadastrado!", status: "success", duration: 3000, isClosable: true });
+      }
+      onClose();
+      carregarServicos();
     } catch (error) {
-      toast({
-        title: 'Erro ao excluir.',
-        description: 'Não foi possível remover o serviço.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true
-      });
-      onDeleteClose();
+      toast({ title: "Erro ao salvar", description: "Erro no backend.", status: "error", duration: 3000, isClosable: true });
     }
   };
 
-  if (loading) {
-    return (<Flex justify='center' align='center' height='50vh'><Spinner size='xl' /></Flex>);
-  }
+  const handleExcluir = async () => {
+    try {
+      await api.delete(`/servicos/${idServico}`);
+      toast({ title: "Serviço excluído!", status: "info", duration: 3000, isClosable: true });
+      onDeleteClose();
+      carregarServicos();
+    } catch (error) {
+      toast({ title: "Erro ao excluir", description: "O serviço pode estar em uso.", status: "error", duration: 3000, isClosable: true });
+    }
+  };
 
   return (
     <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
-      <Card>
-        <Flex justify='space-between' align='center' mb='20px'>
-          <Text fontSize='2xl' fontWeight='700' color={textColor}>Catálogo de Serviços</Text>
-          <Button colorScheme='brand' onClick={() => handleOpenForm()}>Novo Serviço</Button>
-        </Flex>
-        <Table variant='simple'>
-          {/*  */}
-          <Thead><Tr><Th>Nome do Serviço</Th><Th>Descrição</Th><Th>Ações</Th></Tr></Thead>
-          <Tbody>
-            {servicos.map((servico) => (
-              <Tr key={servico.id}>
-                <Td>{servico.nome_servico}</Td>
-                <Td>{servico.descricao}</Td>
-                {/* */}
-                <Td>
-                  <Button size='sm' mr='10px' onClick={() => handleOpenForm(servico)}><Icon as={MdEdit} /></Button>
-                  <Button size='sm' colorScheme='red' onClick={() => handleAbrirModalExclusao(servico)}><Icon as={MdDelete} /></Button>
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </Table>
-      </Card>
+      <Flex justifyContent="space-between" mb="20px" align="center">
+        <Text color={textColor} fontSize="2xl" fontWeight="700">
+          Catálogo de Serviços
+        </Text>
+        <Button leftIcon={<MdAdd />} colorScheme="brand" variant="solid" onClick={handleNovo}>
+          Novo Serviço
+        </Button>
+      </Flex>
 
-      <Formik
-        
-        initialValues={servicoSelecionado || { nome_servico: '', descricao: '' }}
-        validationSchema={ServicoSchema}
-        onSubmit={handleSubmit}
-        enableReinitialize
-      >
-        {(props) => (
-          <Modal isOpen={isFormOpen} onClose={onFormClose}>
-            <ModalOverlay /><ModalContent>
-              <Form>
-                <ModalHeader>{servicoSelecionado ? 'Editar Serviço' : 'Cadastrar Novo Serviço'}</ModalHeader><ModalCloseButton />
-                <ModalBody>
-                  <Field name='nome_servico'>{({ field, form }) => (<FormControl isInvalid={form.errors.nome_servico && form.touched.nome_servico}><FormLabel>Nome do Serviço</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.nome_servico}</FormErrorMessage></FormControl>)}</Field>
-                  <Field name='descricao'>{({ field, form }) => (<FormControl mt={4} isInvalid={form.errors.descricao && form.touched.descricao}><FormLabel>Descrição</FormLabel><Textarea {...field} /><FormErrorMessage>{form.errors.descricao}</FormErrorMessage></FormControl>)}</Field>
-                  {/*  */}
-                </ModalBody>
-                <ModalFooter>
-                  <Button colorScheme='brand' mr={3} isLoading={props.isSubmitting} type='submit'>Salvar</Button>
-                  <Button variant='ghost' onClick={onFormClose}>Cancelar</Button>
-                </ModalFooter>
-              </Form>
-            </ModalContent>
-          </Modal>
+      <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap="20px">
+        {servicos.map((servico) => (
+          <Card key={servico.id} p="20px">
+            <Flex justify="space-between" align="start" mb="20px">
+              <Flex align="center">
+                <Box bg={iconColor} p="10px" borderRadius="50%" color="white" mr="15px">
+                  <Icon as={MdBuild} w="24px" h="24px" />
+                </Box>
+                <Box>
+                  <Text fontWeight="bold" fontSize="lg">{servico.nome_servico}</Text>
+                  
+                  {servico.tipo_veiculo ? (
+                      <Flex align="center" mt="5px">
+                        <Icon as={MdDirectionsCar} color="gray.500" w="14px" h="14px" mr="5px"/>
+                        <Text fontSize="xs" color="gray.500" fontWeight="600">
+                            Requer: {servico.tipo_veiculo}
+                        </Text>
+                      </Flex>
+                  ) : (
+                      <Text fontSize="xs" color="gray.400" mt="5px">Não requer maquinário</Text>
+                  )}
+                  
+                </Box>
+              </Flex>
+              
+              {/* --- BOTÕES DE AÇÃO PADRONIZADOS --- */}
+              <Flex align="center" gap="5px">
+                <Tooltip label="Editar Serviço">
+                    <IconButton
+                        size="sm"
+                        colorScheme="brand"
+                        icon={<MdEdit />}
+                        onClick={() => handleEditar(servico)}
+                    />
+                </Tooltip>
+                <Tooltip label="Excluir Serviço">
+                    <IconButton
+                        size="sm"
+                        colorScheme="red"
+                        icon={<MdDelete />}
+                        onClick={() => handleExcluirConfirmacao(servico)}
+                    />
+                </Tooltip>
+              </Flex>
+            </Flex>
+
+            <Text color="gray.500" fontSize="sm" noOfLines={2}>
+              {servico.descricao || "Sem descrição definida."}
+            </Text>
+          </Card>
+        ))}
+
+        {servicos.length === 0 && (
+            <Text color="gray.500" mt="20px">Nenhum serviço cadastrado.</Text>
         )}
-      </Formik>
+      </SimpleGrid>
 
-      <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
+      {/* --- MODAL DE CADASTRO / EDIÇÃO --- */}
+      <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader>Confirmar Exclusão</ModalHeader>
+          <ModalHeader>{idServico ? "Editar Serviço" : "Novo Serviço"}</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            Você tem certeza que deseja excluir o serviço <strong>{servicoParaDeletar?.nome_servico}</strong>?
+            <FormControl mb="15px">
+              <FormLabel>Nome do Serviço</FormLabel>
+              <Input 
+                placeholder="Ex: Corte de Terra" 
+                value={nomeServico}
+                onChange={(e) => setNomeServico(e.target.value)}
+              />
+            </FormControl>
+
+            <FormControl mb="15px">
+              <FormLabel>Veículo Necessário (Opcional)</FormLabel>
+              <Select 
+                placeholder="Selecione se precisar de máquina..." 
+                value={tipoVeiculo} 
+                onChange={(e) => setTipoVeiculo(e.target.value)}
+              >
+                <option value="">Nenhum (Apenas mão de obra)</option>
+                <option value="Trator">Trator</option>
+                <option value="Caminhão">Caminhão</option>
+                <option value="Retroescavadeira">Retroescavadeira</option>
+                <option value="Motoniveladora">Motoniveladora</option>
+                <option value="Pá Mecânica">Pá Mecânica</option>
+                {/* REMOVIDO: Opção "Arado" - Arado é implemento, não veículo */}
+              </Select>
+              <Text fontSize="xs" color="gray.400" mt="5px">
+                Isso ajuda a filtrar a frota disponível na hora da solicitação.
+              </Text>
+            </FormControl>
+
+            <FormControl mb="15px">
+              <FormLabel>Descrição</FormLabel>
+              <Textarea 
+                placeholder="Detalhes sobre como o serviço é realizado..." 
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+              />
+            </FormControl>
           </ModalBody>
+
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onDeleteClose}>Cancelar</Button>
-            <Button colorScheme="red" onClick={handleConfirmarExclusao}>Excluir</Button>
+            <Button colorScheme="red" variant="ghost" mr={3} onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button colorScheme="brand" onClick={handleSalvar}>
+              {idServico ? "Atualizar" : "Salvar"}
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </Box>
-  );
+
+      {/* --- ALERTA DE EXCLUSÃO --- */}
+      <AlertDialog isOpen={isDeleteOpen} leastDestructiveRef={cancelRef} onClose={onDeleteClose}>
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">Excluir Serviço</AlertDialogHeader>
+            <AlertDialogBody>Tem certeza? Isso pode afetar solicitações antigas.</AlertDialogBody>
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onDeleteClose}>Cancelar</Button>
+              <Button colorScheme="red" onClick={handleExcluir} ml={3}>Excluir</Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
+    </Box>
+  );
 }
