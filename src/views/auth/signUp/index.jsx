@@ -13,9 +13,7 @@ import { RiEyeCloseLine } from 'react-icons/ri';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 
-
 import { createUsuario } from 'services/usuarioService';
-
 import { useAuth } from 'contexts/AuthContext';
 
 function SignUp() {
@@ -28,14 +26,14 @@ function SignUp() {
   
   const { authData } = useAuth();
 
-  
   const handleRegister = async (values, actions) => {
     try {
       const newUser = {
         nome: values.nome,
         login: values.login,
         senha: values.senha, 
-        perfil: 'produtor' 
+        // CORREÇÃO: Agora envia 'agricultor' para bater com o banco de dados
+        perfil: 'agricultor' 
       };
       
       await createUsuario(newUser);
@@ -65,7 +63,8 @@ function SignUp() {
   };
 
   if (authData) {
-    if (authData.user.perfil === 'produtor') {
+    // CORREÇÃO: Verifica se o perfil é 'agricultor' para redirecionar corretamente
+    if (authData.user.perfil === 'agricultor') {
       return <Navigate to="/produtor/minhas-solicitacoes" replace />;
     }
     return <Navigate to="/admin" replace />;

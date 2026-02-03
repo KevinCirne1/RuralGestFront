@@ -3,44 +3,37 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Flex, Heading, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
-  Spinner, useToast, Badge, Box
+  Spinner, useToast, Badge
 } from "@chakra-ui/react";
 import Card from "components/card/Card.js";
 
-
 import { useAuth } from "contexts/AuthContext";
 import { getSolicitacoes } from "services/solicitacaoService";
-import { getServicos } from "services/servicoService"; 
 
 export default function MinhasSolicitacoes() {
   const [solicitacoes, setSolicitacoes] = useState([]);
-  const [servicos, setServicos] = useState([]); 
   const [loading, setLoading] = useState(true);
   const textColor = useColorModeValue("secondaryGray.900", "white");
   const toast = useToast();
 
-  
   const { authData } = useAuth();
   const agricultorLogado = authData?.user;
 
-  
   const fetchPageData = useCallback(async () => {
     if (!agricultorLogado) return;
     setLoading(true);
     try {
-      // Fazemos as duas chamadas em paralelo
-      const [solicitacoesRes, servicosRes] = await Promise.all([
-        getSolicitacoes(),
-        getServicos()
-      ]);
+      const solicitacoesRes = await getSolicitacoes();
       
-      
-      const minhasSolicitacoes = solicitacoesRes.data.filter(sol => sol.agricultor_id === agricultorLogado.id);
+      // Filtragem: garante que só apareçam as solicitações deste usuário
+      const minhasSolicitacoes = solicitacoesRes.data.filter(
+        sol => sol.agricultor && sol.agricultor.id === agricultorLogado.id
+      );
       
       setSolicitacoes(minhasSolicitacoes);
-      setServicos(servicosRes.data); 
 
     } catch (error) {
+      console.error(error);
       toast({ title: "Erro ao buscar solicitações.", status: "error", duration: 5000, isClosable: true });
     } finally {
       setLoading(false);
@@ -53,19 +46,38 @@ export default function MinhasSolicitacoes() {
 
   const formatDate = (dateString) => {
     if (!dateString) return "---";
-    return new Date(dateString).toLocaleDateString();
+    return new Date(dateString).toLocaleDateString('pt-BR');
   };
   
+  // --- AQUI ESTÁ A MÁGICA DAS CORES ---
   const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Pendente':
-        return <Badge colorScheme='yellow'>{status}</Badge>;
-      case 'Concluído':
-        return <Badge colorScheme='green'>{status}</Badge>;
-      case 'Em Andamento':
-        return <Badge colorScheme='blue'>{status}</Badge>;
+    if (!status) return <Badge>N/A</Badge>;
+
+    const statusUpper = status.toUpperCase(); // Garante que "aprovada" vire "APROVADA"
+
+    switch (statusUpper) {
+      case 'APROVADA':
+      case 'CONCLUÍDO':
+        return (
+            <Badge colorScheme='green' p="5px" borderRadius="8px" variant="subtle">
+                {status}
+            </Badge>
+        );
+      case 'RECUSADA':
+      case 'CANCELADA':
+        return (
+            <Badge colorScheme='red' p="5px" borderRadius="8px" variant="subtle">
+                {status}
+            </Badge>
+        );
+      case 'PENDENTE':
+      case 'EM ANDAMENTO':
       default:
-        return <Badge>{status}</Badge>;
+        return (
+            <Badge colorScheme='yellow' p="5px" borderRadius="8px" variant="subtle">
+                {status}
+            </Badge>
+        );
     }
   };
 
@@ -88,12 +100,11 @@ export default function MinhasSolicitacoes() {
           </Thead>
           <Tbody>
             {solicitacoes.map((sol) => {
-              // <<< MUDANÇA 4: Lógica para encontrar o nome do serviço >>>
-              const servicoInfo = servicos.find(s => s.id === sol.servico_id);
-              
               return (
                 <Tr key={sol.id}>
-                  <Td>{servicoInfo ? servicoInfo.nome_servico : 'Serviço não encontrado'}</Td>
+                  <Td fontWeight="bold">
+                    {sol.servico ? sol.servico.nome_servico : 'Serviço não identificado'}
+                  </Td>
                   <Td>{formatDate(sol.data_solicitacao)}</Td>
                   <Td>{formatDate(sol.data_execucao)}</Td>
                   <Td>{getStatusBadge(sol.status)}</Td>

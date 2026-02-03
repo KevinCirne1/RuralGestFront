@@ -54,7 +54,7 @@ function SignIn() {
 
   
   if (authData) {
-    if (authData.user.perfil === 'produtor') {
+    if (authData.user.perfil === 'agricultor') {
       return <Navigate to="/produtor" replace />;
     }
     return <Navigate to="/admin" replace />;

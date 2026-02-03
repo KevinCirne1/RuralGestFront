@@ -19,19 +19,25 @@ export default function AdminLayout(props) {
   const [brandText, setBrandText] = useState('Dashboard');
   const navbarBg = useColorModeValue('rgba(244, 247, 254, 0.2)', 'rgba(11,20,55,0.5)');
 
+  // Atualiza o texto do topo (Dashboard, Perfil, etc)
   useEffect(() => {
     const activeRoute = routes.find(
       (route) => window.location.href.indexOf(route.layout + route.path) !== -1
     );
-    setBrandText(activeRoute ? activeRoute.name : 'Dashboard');
-  }, [location, routes]);
+    setBrandText(activeRoute ? activeRoute.name : 'Gestão Rural');
+  }, [location]);
 
+  // Redireciona se não estiver logado
   if (!loading && !authData) {
     return <Navigate to="/auth/sign-in" replace />;
   }
 
-  const getAdminRoutes = (routes) => {
-    return routes.filter(route => route.layout === "/admin");
+  // --- CORREÇÃO AQUI ---
+  // Filtra as rotas permitidas para este layout (Admin E Produtor)
+  const getActiveRoutes = (routes) => {
+    return routes.filter(route => 
+      route.layout === "/admin" || route.layout === "/produtor"
+    );
   };
 
   return (
@@ -57,14 +63,15 @@ export default function AdminLayout(props) {
         />
         <Box mx="auto" p={{ base: '20px', md: '30px' }} pe="20px" minH="calc(100vh - 120px)">
           <Routes>
-            {getAdminRoutes(routes).map((prop, key) => (
+            {/* Mapeia as rotas ativas (Admin + Produtor) */}
+            {getActiveRoutes(routes).map((prop, key) => (
               <Route
-                path={prop.path.replace("/admin", "")}
-                
+                path={prop.path}
                 element={<prop.component />}
                 key={key}
               />
             ))}
+            {/* Rota padrão caso nada seja encontrado */}
             <Route path="*" element={<Navigate to="/admin/default" replace />} />
           </Routes>
         </Box>

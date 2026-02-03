@@ -1,48 +1,54 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Box, Flex, Button, Icon, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
-  FormControl, FormLabel, Input, useDisclosure, FormErrorMessage, Spinner, useToast
+  FormControl, FormLabel, Input, useDisclosure, FormErrorMessage, Spinner, useToast,
+  IconButton, Tooltip, InputGroup, InputLeftElement
 } from "@chakra-ui/react";
-import { MdEdit, MdDelete } from "react-icons/md";
+import { MdEdit, MdDelete, MdPersonAdd, MdSearch } from "react-icons/md"; 
 import Card from "components/card/Card.js";
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import { getAgricultores, createAgricultor, updateAgricultor, deleteAgricultor } from "services/agricultorService";
 
-const SignupSchema = Yup.object().shape({
-  nome: Yup.string().min(3, 'O nome é muito curto!').required('O campo nome é obrigatório'),
-  cpf: Yup.string().min(11, 'O CPF deve ter 11 dígitos').required('O campo CPF é obrigatório'),
-  comunidade: Yup.string().required('O campo comunidade é obrigatório'),
-  contato: Yup.string().required('O campo contato é obrigatório'),
+// Validação do Formulário
+const AgricultorSchema = Yup.object().shape({
+  nome: Yup.string().required('Nome é obrigatório'),
+  cpf: Yup.string().required('CPF é obrigatório'),
+  comunidade: Yup.string().required('Comunidade é obrigatória'),
+  contato: Yup.string().required('Contato é obrigatório')
 });
 
 export default function AgricultoresPage() {
   const [agricultores, setAgricultores] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // --- ESTADO DA BUSCA ---
+  const [busca, setBusca] = useState("");
+
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
   const [agricultorParaDeletar, setAgricultorParaDeletar] = useState(null);
   const [agricultorSelecionado, setAgricultorSelecionado] = useState(null);
+  
   const textColor = useColorModeValue("secondaryGray.900", "white");
   const toast = useToast();
 
-  const fetchAgricultores = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const response = await getAgricultores();
       setAgricultores(response.data);
     } catch (error) {
-      toast({ title: "Erro ao buscar agricultores.", description: "Verifique a conexão com a API.", status: "error", duration: 5000, isClosable: true });
+      toast({ title: "Erro ao buscar dados.", status: "error", duration: 5000, isClosable: true });
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
   useEffect(() => {
-    fetchAgricultores();
-  }, [fetchAgricultores]);
+    fetchData();
+  }, [fetchData]);
 
   const handleOpenForm = (agricultor = null) => {
     setAgricultorSelecionado(agricultor);
@@ -52,33 +58,21 @@ export default function AgricultoresPage() {
   const handleSubmit = async (values, actions) => {
     try {
       if (agricultorSelecionado) {
-       
-        
-
-        const dadosParaAtualizar = {
-          nome: values.nome,
-          cpf: values.cpf,
-          comunidade: values.comunidade,
-          contato: values.contato
-        };
-
-        await updateAgricultor(agricultorSelecionado.id, dadosParaAtualizar);
-        toast({ title: "Agricultor atualizado com sucesso!", status: "success", duration: 5000, isClosable: true });
+        await updateAgricultor(agricultorSelecionado.id, values); 
+        toast({ title: "Agricultor atualizado!", status: "success", duration: 5000, isClosable: true });
       } else {
-        
         await createAgricultor(values);
-        toast({ title: "Agricultor cadastrado com sucesso!", status: "success", duration: 5000, isClosable: true });
+        toast({ title: "Agricultor cadastrado!", status: "success", duration: 5000, isClosable: true });
       }
-      
       actions.setSubmitting(false);
       onFormClose();
-      fetchAgricultores(); 
+      fetchData();
     } catch (error) {
       toast({ title: "Erro na operação.", description: error.message, status: "error", duration: 5000, isClosable: true });
       actions.setSubmitting(false);
     }
   };
-  
+
   const handleAbrirModalExclusao = (agricultor) => {
     setAgricultorParaDeletar(agricultor);
     onDeleteOpen();
@@ -88,63 +82,111 @@ export default function AgricultoresPage() {
     if (!agricultorParaDeletar) return;
     try {
       await deleteAgricultor(agricultorParaDeletar.id);
-      toast({ title: "Sucesso!", description: `Agricultor "${agricultorParaDeletar.nome}" excluído.`, status: 'success', duration: 3000, isClosable: true });
+      toast({ title: 'Sucesso!', description: `Agricultor excluído.`, status: 'success', duration: 3000, isClosable: true });
       onDeleteClose();
-      fetchAgricultores();
+      fetchData();
     } catch (error) {
-      toast({ title: 'Erro ao excluir.', description: 'Não foi possível remover o agricultor.', status: 'error', duration: 5000, isClosable: true });
+      toast({ title: 'Erro ao excluir.', description: 'Verifique se ele possui propriedades vinculadas.', status: 'error', duration: 5000, isClosable: true });
       onDeleteClose();
     }
   };
 
-  if (loading) {
-    return (<Flex justify='center' align='center' height='50vh'><Spinner size='xl' /></Flex>);
-  }
+  if (loading) return (<Flex justify='center' align='center' height='50vh'><Spinner size='xl' /></Flex>);
 
   return (
     <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
       <Card>
         <Flex justify='space-between' align='center' mb='20px'>
           <Text fontSize='2xl' fontWeight='700' color={textColor}>Lista de Agricultores</Text>
-          <Button colorScheme='brand' onClick={() => handleOpenForm()}>Cadastrar Agricultor</Button>
+          <Button leftIcon={<MdPersonAdd />} colorScheme='brand' onClick={() => handleOpenForm()}>Novo Agricultor</Button>
         </Flex>
-        <Table variant='simple'>
-          <Thead><Tr><Th>Nome</Th><Th>CPF</Th><Th>Comunidade</Th><Th>Contato</Th><Th>Última Atualização</Th><Th>Ações</Th></Tr></Thead>
+        
+        {/* --- BARRA DE PESQUISA (TURBINADA) --- */}
+        <InputGroup mb="20px">
+            <InputLeftElement pointerEvents='none'>
+                <Icon as={MdSearch} color='gray.300' />
+            </InputLeftElement>
+            <Input 
+                placeholder="Buscar por Nome, CPF ou Comunidade..." 
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                borderRadius="10px"
+            />
+        </InputGroup>
+
+        <Table variant='simple' size='sm'>
+          <Thead>
+            <Tr>
+              <Th>Nome</Th>
+              <Th>CPF</Th>
+              <Th>Comunidade</Th>
+              <Th>Contato</Th>
+              <Th>Ações</Th>
+            </Tr>
+          </Thead>
           <Tbody>
-            {agricultores.map((agricultor) => (
-              <Tr key={agricultor.id}>
-                <Td>{agricultor.nome}</Td>
-                <Td>{agricultor.cpf}</Td>
-                <Td>{agricultor.comunidade}</Td>
-                <Td>{agricultor.contato}</Td>
-                <Td>{new Date(agricultor.data_atualizacao_cadastro).toLocaleDateString()}</Td>
-                <Td>
-                  <Button size='sm' mr='10px' onClick={() => handleOpenForm(agricultor)}><Icon as={MdEdit} /></Button>
-                  <Button size='sm' colorScheme='red' onClick={() => handleAbrirModalExclusao(agricultor)}><Icon as={MdDelete} /></Button>
-                </Td>
-              </Tr>
+            {/* --- FILTRO INTELIGENTE: Busca em vários campos --- */}
+            {agricultores
+                .filter(ag => {
+                    const termo = busca.toLowerCase();
+                    return (
+                        ag.nome.toLowerCase().includes(termo) ||
+                        ag.cpf.includes(termo) || 
+                        ag.comunidade.toLowerCase().includes(termo)
+                    );
+                })
+                .map((ag) => (
+                    <Tr key={ag.id}>
+                      <Td fontWeight="bold">{ag.nome}</Td>
+                      <Td>{ag.cpf}</Td>
+                      <Td>{ag.comunidade}</Td>
+                      <Td>{ag.contato}</Td>
+                      <Td>
+                        <Flex gap="5px">
+                          <Tooltip label="Editar">
+                            <IconButton size='sm' colorScheme='brand' icon={<MdEdit />} onClick={() => handleOpenForm(ag)} />
+                          </Tooltip>
+                          <Tooltip label="Excluir">
+                            <IconButton size='sm' colorScheme='red' icon={<MdDelete />} onClick={() => handleAbrirModalExclusao(ag)} />
+                          </Tooltip>
+                        </Flex>
+                      </Td>
+                    </Tr>
             ))}
+
+            {/* Mensagem se não achar nada */}
+            {agricultores.length > 0 && agricultores.filter(ag => ag.nome.toLowerCase().includes(busca.toLowerCase()) || ag.cpf.includes(busca)).length === 0 && (
+                <Tr>
+                    <Td colSpan={5} textAlign="center" py="4" color="gray.500">
+                        Nenhum agricultor encontrado para "{busca}".
+                    </Td>
+                </Tr>
+            )}
           </Tbody>
         </Table>
       </Card>
 
-      {/* Modal de Cadastro/Edição */}
-      <Formik
-        initialValues={agricultorSelecionado || { nome: '', cpf: '', comunidade: '', contato: '' }}
-        validationSchema={SignupSchema}
+      {/* Formulário (Modal) */}
+      <Formik 
+        initialValues={agricultorSelecionado || { nome: '', cpf: '', comunidade: '', contato: '' }} 
+        validationSchema={AgricultorSchema} 
         onSubmit={handleSubmit}
-        enableReinitialize 
+        enableReinitialize
       >
         {(props) => (
-          <Modal isOpen={isFormOpen} onClose={onFormClose}>
+          <Modal isOpen={isFormOpen} onClose={onFormClose} size="lg">
             <ModalOverlay /><ModalContent>
               <Form>
-                <ModalHeader>{agricultorSelecionado ? 'Editar Agricultor' : 'Cadastrar Novo Agricultor'}</ModalHeader><ModalCloseButton />
+                <ModalHeader>{agricultorSelecionado ? "Editar Agricultor" : "Cadastrar Agricultor"}</ModalHeader><ModalCloseButton />
                 <ModalBody>
-                  <Field name='nome'>{({ field, form }) => (<FormControl isInvalid={form.errors.nome && form.touched.nome}><FormLabel>Nome Completo</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.nome}</FormErrorMessage></FormControl>)}</Field>
-                  <Field name='cpf'>{({ field, form }) => (<FormControl mt={4} isInvalid={form.errors.cpf && form.touched.cpf}><FormLabel>CPF</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.cpf}</FormErrorMessage></FormControl>)}</Field>
-                  <Field name='comunidade'>{({ field, form }) => (<FormControl mt={4} isInvalid={form.errors.comunidade && form.touched.comunidade}><FormLabel>Comunidade</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.comunidade}</FormErrorMessage></FormControl>)}</Field>
-                  <Field name='contato'>{({ field, form }) => (<FormControl mt={4} isInvalid={form.errors.contato && form.touched.contato}><FormLabel>Contato (Telefone)</FormLabel><Input {...field} type="tel" /><FormErrorMessage>{form.errors.contato}</FormErrorMessage></FormControl>)}</Field>
+                  <Field name='nome'>{({ field, form }) => (<FormControl isInvalid={form.errors.nome && form.touched.nome} mb={4}><FormLabel>Nome Completo</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.nome}</FormErrorMessage></FormControl>)}</Field>
+                  
+                  <Flex gap="4">
+                      <Field name='cpf'>{({ field, form }) => (<FormControl isInvalid={form.errors.cpf && form.touched.cpf} mb={4}><FormLabel>CPF</FormLabel><Input {...field} placeholder="000.000.000-00" /><FormErrorMessage>{form.errors.cpf}</FormErrorMessage></FormControl>)}</Field>
+                      <Field name='contato'>{({ field, form }) => (<FormControl isInvalid={form.errors.contato && form.touched.contato} mb={4}><FormLabel>Contato / Celular</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.contato}</FormErrorMessage></FormControl>)}</Field>
+                  </Flex>
+
+                  <Field name='comunidade'>{({ field, form }) => (<FormControl isInvalid={form.errors.comunidade && form.touched.comunidade} mb={4}><FormLabel>Comunidade / Localidade</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.comunidade}</FormErrorMessage></FormControl>)}</Field>
                 </ModalBody>
                 <ModalFooter>
                   <Button colorScheme='brand' mr={3} isLoading={props.isSubmitting} type='submit'>Salvar</Button>
@@ -156,14 +198,13 @@ export default function AgricultoresPage() {
         )}
       </Formik>
 
-      {/* Modal de Confirmação de Exclusão */}
+      {/* Modal Exclusão */}
       <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Confirmar Exclusão</ModalHeader>
-          <ModalCloseButton />
+        <ModalOverlay /><ModalContent>
+          <ModalHeader>Confirmar Exclusão</ModalHeader><ModalCloseButton />
           <ModalBody>
-            Você tem certeza que deseja excluir o agricultor <strong>{agricultorParaDeletar?.nome}</strong>?
+            Tem certeza que deseja remover <strong>{agricultorParaDeletar?.nome}</strong>?
+            <Text fontSize="sm" color="red.500" mt={2}>Cuidado: Se ele tiver propriedades cadastradas, a exclusão pode ser bloqueada.</Text>
           </ModalBody>
           <ModalFooter>
             <Button variant="ghost" mr={3} onClick={onDeleteClose}>Cancelar</Button>

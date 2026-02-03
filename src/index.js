@@ -5,15 +5,15 @@ import { ChakraProvider } from '@chakra-ui/react';
 import theme from 'theme/theme';
 
 // Layouts
-import AdminLayout from 'layouts/admin';
+import AdminLayout from 'layouts/admin'; // <--- Vamos usar ESSE para tudo
 import AuthLayout from 'layouts/auth';
-import ProdutorLayout from 'layouts/produtor';
+// Remova o import do ProdutorLayout para não dar erro se o arquivo não existir
+// import ProdutorLayout from 'layouts/produtor'; 
 
 // Views
 import LandingPage from 'views/landing/LandingPage';
 import SignIn from 'views/auth/signIn';
 import SignUp from 'views/auth/signUp';
-
 
 // Contexto de Autenticação
 import { AuthProvider } from 'contexts/AuthContext';
@@ -36,8 +36,9 @@ root.render(
 
             {/* --- Rotas Protegidas --- */}
             <Route element={<ProtectedRoute />}>
+              {/* O PULO DO GATO: Usamos AdminLayout para as duas rotas! */}
               <Route path={`/admin/*`} element={<AdminLayout />} />
-              <Route path={`/produtor/*`} element={<ProdutorLayout />} />
+              <Route path={`/produtor/*`} element={<AdminLayout />} />
             </Route>
             
             {/* Rota de fallback */}
