@@ -1,491 +1,329 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
-  Box, Flex, Button, Icon, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
-  Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
-  FormControl, FormLabel, useDisclosure, Spinner, useToast, Select, Badge, Alert, AlertIcon, Textarea,
-  Input, IconButton, Tooltip
+  Box,
+  Button,
+  Flex,
+  Text,
+  useColorModeValue,
+  SimpleGrid,
+  Icon,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  Input,
+  Select,
+  useDisclosure,
+  useToast,
+  Badge,
+  Textarea
 } from "@chakra-ui/react";
-import { CheckIcon, CloseIcon } from "@chakra-ui/icons";
-import { MdEdit, MdDeleteForever, MdPrint } from "react-icons/md"; // Ícone de Impressora
-import Card from "components/card/Card.js";
-import { Formik, Form, Field } from 'formik';
-import * as Yup from 'yup';
-import { getAgricultores } from "services/agricultorService";
-import { getServicos } from "services/servicoService";
-import { getPropriedades } from "services/propriedadeService";
-import { getSolicitacoes, createSolicitacao, updateSolicitacao } from "services/solicitacaoService";
-import api from "services/api"; 
-import jsPDF from "jspdf"; // --- IMPORTANTE: Biblioteca de PDF
+import { MdAdd, MdEdit, MdAssignment, MdPrint } from "react-icons/md";
+import Card from "components/card/Card";
+import api from "services/api";
 
-const SolicitacaoSchema = Yup.object().shape({
-  servico_id: Yup.string().required('Selecione um serviço'),
-  agricultor_id: Yup.string().required('Selecione um agricultor'),
-  propriedade_id: Yup.string().required('Selecione uma propriedade'),
-  status: Yup.string().required('Status obrigatório'),
-});
-
-export default function SolicitacoesPage() {
-  const [solicitacoes, setSolicitacoes] = useState([]);
-  const [agricultores, setAgricultores] = useState([]);
-  const [servicos, setServicos] = useState([]);
-  const [propriedades, setPropriedades] = useState([]);
-  const [veiculos, setVeiculos] = useState([]); 
-  const [loading, setLoading] = useState(true);
-  
-  // Modais
-  const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
-  const { isOpen: isApproveOpen, onOpen: onApproveOpen, onClose: onApproveClose } = useDisclosure();
-  const { isOpen: isRefuseOpen, onOpen: onRefuseOpen, onClose: onRefuseClose } = useDisclosure();
-  const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
-  const { isOpen: isCancelOpen, onOpen: onCancelOpen, onClose: onCancelClose } = useDisclosure();
-  
-  const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState(null);
-  const [veiculoSelecionadoId, setVeiculoSelecionadoId] = useState("");
-  const [motivoRecusa, setMotivoRecusa] = useState("");
-  const [editData, setEditData] = useState({});
-
+export default function Solicitacoes() {
   const textColor = useColorModeValue("secondaryGray.900", "white");
+  const iconColor = useColorModeValue("brand.500", "white");
+
+  // --- Função Data Local ---
+  const getDataLocal = () => {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+  };
+
+  // --- Estados ---
+  const [solicitacoes, setSolicitacoes] = useState([]);
+  const [propriedades, setPropriedades] = useState([]);
+  const [servicos, setServicos] = useState([]);
+  const [veiculos, setVeiculos] = useState([]);
+
+  // Modal e Form
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState(null);
+  
+  const [propriedadeId, setPropriedadeId] = useState("");
+  const [servicoId, setServicoId] = useState("");
+  const [dataSolicitacao, setDataSolicitacao] = useState(getDataLocal());
+  const [observacao, setObservacao] = useState("");
+  const [veiculoId, setVeiculoId] = useState("");
+  const [status, setStatus] = useState("PENDENTE");
+  const [motivoRecusa, setMotivoRecusa] = useState(""); 
   const toast = useToast();
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
     try {
-      const [solRes, agrRes, servRes, propRes, veicRes] = await Promise.all([
-        getSolicitacoes(),
-        getAgricultores(),
-        getServicos(),
-        getPropriedades(),
-        api.get("/veiculos") 
+      const [resSol, resProp, resServ, resVeic] = await Promise.all([
+        api.get("/solicitacoes"),
+        api.get("/propriedades"),
+        api.get("/servicos"),
+        api.get("/veiculos")
       ]);
-      setSolicitacoes(solRes.data);
-      setAgricultores(agrRes.data);
-      setServicos(servRes.data);
-      setPropriedades(propRes.data);
-      setVeiculos(veicRes.data); 
-    } catch (error) {
-      toast({ title: "Erro ao carregar dados.", status: "error", duration: 5000, isClosable: true });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+      setSolicitacoes(resSol.data);
+      setPropriedades(resProp.data);
+      setServicos(resServ.data);
+      setVeiculos(resVeic.data);
+    } catch (error) { console.error("Erro dados", error); }
+  }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  // --- FUNÇÃO GERADORA DE PDF ---
-  const gerarPDF = (sol) => {
-    const doc = new jsPDF();
-    
-    // Configurações visuais simples
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text("PREFEITURA MUNICIPAL", 105, 20, null, null, "center");
-    
-    doc.setFontSize(16);
-    doc.text("SECRETARIA DE AGRICULTURA", 105, 30, null, null, "center");
-    
-    doc.setLineWidth(0.5);
-    doc.line(20, 35, 190, 35);
-
-    doc.setFontSize(18);
-    doc.text(`ORDEM DE SERVIÇO Nº ${sol.id}`, 105, 50, null, null, "center");
-
-    // Dados do Pedido
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    
-    const startY = 70;
-    const lineHeight = 10;
-
-    doc.text(`AGRICULTOR: ${sol.agricultor?.nome || '---'}`, 20, startY);
-    doc.text(`PROPRIEDADE: ${sol.propriedade?.terreno || '---'}`, 20, startY + lineHeight);
-    doc.text(`SERVIÇO SOLICITADO: ${sol.servico?.nome_servico || '---'}`, 20, startY + (lineHeight * 2));
-    
-    const dataFormatada = sol.data_execucao 
-        ? new Date(sol.data_execucao).toLocaleDateString('pt-BR') 
-        : 'A definir';
-    doc.text(`DATA PREVISTA: ${dataFormatada}`, 20, startY + (lineHeight * 3));
-
-    // Destaque para o Veículo
-    doc.setFont("helvetica", "bold");
-    doc.text(`VEÍCULO ALOCADO: ${sol.veiculo?.nome || 'Nenhum / Manual'}`, 20, startY + (lineHeight * 4));
-    doc.setFont("helvetica", "normal");
-
-    // Área de Assinaturas
-    doc.text("Declaramos que o serviço foi realizado conforme solicitado.", 20, 150);
-    
-    doc.line(20, 180, 90, 180);
-    doc.text("Assinatura do Operador", 30, 185);
-
-    doc.line(110, 180, 180, 180);
-    doc.text("Assinatura do Agricultor", 120, 185);
-
-    // Rodapé
-    doc.setFontSize(10);
-    doc.text("RuralGest - Sistema de Gestão Agrícola", 105, 280, null, null, "center");
-
-    // Baixar o arquivo
-    doc.save(`OS_${sol.id}_${sol.agricultor?.nome}.pdf`);
+  // --- AÇÕES ---
+  const handleNovo = () => {
+    setSolicitacaoSelecionada(null);
+    setPropriedadeId("");
+    setServicoId("");
+    setDataSolicitacao(getDataLocal());
+    setObservacao("");
+    setVeiculoId("");
+    setStatus("PENDENTE");
+    setMotivoRecusa("");
+    onOpen();
   };
 
-  // --- LÓGICAS DE AÇÃO (Aprovar, Recusar, etc...) ---
-  const handleAbrirRecusa = (solicitacao) => {
-    setSolicitacaoSelecionada(solicitacao);
-    setMotivoRecusa(""); 
-    onRefuseOpen();
+  const handleEditar = (sol) => {
+    setSolicitacaoSelecionada(sol);
+    setPropriedadeId(sol.propriedade_id);
+    setServicoId(sol.servico_id);
+    setDataSolicitacao(sol.data_solicitacao ? sol.data_solicitacao.split('T')[0] : "");
+    setObservacao(sol.observacao || "");
+    setVeiculoId(sol.veiculo_id || "");
+    setStatus(sol.status || "PENDENTE");
+    setMotivoRecusa(sol.motivo_recusa || "");
+    onOpen();
   };
 
-  const handleConfirmarRecusa = async () => {
-    if (!motivoRecusa) {
-        toast({ title: "Informe o motivo", status: "warning", duration: 2000 });
+  const handleSalvar = async () => {
+    if (!propriedadeId || !servicoId) {
+        toast({ title: "Campos obrigatórios", status: "warning" });
         return;
     }
-    try {
-        await updateSolicitacao(solicitacaoSelecionada.id, { 
-            ...solicitacaoSelecionada, 
-            status: 'RECUSADA',
-            motivo_recusa: motivoRecusa 
-        });
-        toast({ title: "Solicitação Recusada", status: "warning", duration: 3000, isClosable: true });
-        onRefuseClose();
-        fetchData();
-    } catch (error) {
-        toast({ title: "Erro ao recusar.", status: "error", duration: 5000 });
-    }
-  };
+    const propObj = propriedades.find(p => p.id == propriedadeId);
+    const idAgricultor = propObj ? propObj.agricultor_id : solicitacaoSelecionada?.agricultor?.id;
 
-  const handleAbrirAprovacao = (solicitacao) => {
-    setSolicitacaoSelecionada(solicitacao);
-    setVeiculoSelecionadoId(""); 
-    onApproveOpen(); 
-  };
-
-  const handleConfirmarAprovacao = async () => {
-    if (!solicitacaoSelecionada) return;
-    if (solicitacaoSelecionada.servico.tipo_veiculo && !veiculoSelecionadoId) {
-        toast({ title: "Selecione um veículo!", description: "Este serviço exige maquinário.", status: "error" });
+    if (!idAgricultor) {
+        toast({ title: "Erro", description: "Agricultor não identificado.", status: "error" });
         return;
     }
+    const payload = {
+      propriedade_id: parseInt(propriedadeId),
+      servico_id: parseInt(servicoId),
+      agricultor_id: idAgricultor,
+      data_solicitacao: dataSolicitacao,
+      observacao: observacao,
+      status: solicitacaoSelecionada ? status : "PENDENTE",
+      veiculo_id: (solicitacaoSelecionada && veiculoId) ? parseInt(veiculoId) : null,
+      motivo_recusa: status === 'RECUSADA' ? motivoRecusa : null 
+    };
 
     try {
-        await updateSolicitacao(solicitacaoSelecionada.id, {
-            ...solicitacaoSelecionada,
-            status: 'APROVADA',
-            veiculo_id: veiculoSelecionadoId || null 
-        });
-
-        toast({ title: "Solicitação Aprovada!", description: "Veículo alocado.", status: "success", duration: 3000 });
-        onApproveClose();
-        fetchData(); 
-    } catch (error) {
-        toast({ title: "Erro ao aprovar.", description: "Verifique o servidor.", status: "error" });
-    }
-  };
-
-  const handleAbrirCancelar = (solicitacao) => {
-    setSolicitacaoSelecionada(solicitacao);
-    onCancelOpen();
-  };
-
-  const handleConfirmarCancelar = async () => {
-    try {
-      await updateSolicitacao(solicitacaoSelecionada.id, {
-        status: 'CANCELADA' 
-      });
-      toast({ title: "Solicitação Cancelada.", status: "info", duration: 3000 });
-      onCancelClose();
+      if (solicitacaoSelecionada) {
+        await api.put(`/solicitacoes/${solicitacaoSelecionada.id}`, payload);
+        toast({ title: "Solicitação Atualizada!", status: "success" });
+      } else {
+        await api.post("/solicitacoes", payload);
+        toast({ title: "Criado com sucesso!", status: "success" });
+      }
+      onClose();
       fetchData();
     } catch (error) {
-      toast({ title: "Erro ao cancelar.", status: "error" });
+      toast({ title: "Erro ao salvar", description: "Verifique os dados.", status: "error" });
     }
   };
 
-  const handleAbrirEditar = (solicitacao) => {
-    setSolicitacaoSelecionada(solicitacao);
-    setEditData({
-      veiculo_id: solicitacao.veiculo ? solicitacao.veiculo.id : "",
-      data_execucao: solicitacao.data_execucao ? solicitacao.data_execucao.split('T')[0] : ""
-    });
-    onEditOpen();
+  // --- NOVA LÓGICA DE IMPRESSÃO (INFALÍVEL) ---
+  const imprimirDocumento = (sol) => {
+    // 1. Cria um iframe invisível
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    // 2. Prepara os dados
+    const titulo = sol.status === 'CONCLUÍDA' ? "ATESTE DE CONCLUSÃO DE SERVIÇO" : "COMPROVANTE DE SOLICITAÇÃO";
+    const dataF = new Date(sol.data_solicitacao).toLocaleDateString();
+    const obs = sol.observacao ? `<div style="border: 1px dashed #666; padding: 10px; margin-bottom: 20px;"><strong>OBSERVAÇÕES:</strong><br/>${sol.observacao}</div>` : '';
+    
+    const textoAteste = sol.status === 'CONCLUÍDA' 
+        ? `<p style="text-align: justify; margin-bottom: 40px; line-height: 1.5;">Declaro para os devidos fins que o serviço descrito acima foi realizado em minha propriedade pela máquina da prefeitura, estando de acordo com a qualidade e a quantidade de horas trabalhadas.</p>` 
+        : '';
+
+    // 3. Monta o HTML do documento
+    const conteudo = `
+      <html>
+        <head>
+          <title>Impressão RuralGest</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; color: black; }
+            h1, h2, h3, p, div, span { color: black !important; }
+            .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid black; padding-bottom: 20px; }
+            .titulo { text-align: center; font-size: 22px; font-weight: bold; text-decoration: underline; margin-bottom: 30px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+            .item { margin-bottom: 15px; }
+            .label { font-weight: bold; font-size: 14px; display: block; }
+            .valor { font-size: 16px; display: block; margin-top: 5px; }
+            .assinaturas { margin-top: 80px; display: flex; justify-content: space-between; }
+            .ass-box { width: 45%; border-top: 1px solid black; text-align: center; padding-top: 10px; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h2 style="margin:0; font-size: 18px;">PREFEITURA MUNICIPAL DE SOLÂNEA</h2>
+            <p style="margin:5px 0; font-size: 14px;">SECRETARIA DE AGRICULTURA E DESENVOLVIMENTO RURAL</p>
+            <p style="margin:0; font-size: 12px;">Sistema RuralGest - Gestão de Máquinas</p>
+          </div>
+
+          <div class="titulo">${titulo}</div>
+
+          <div class="grid">
+            <div class="item"><span class="label">PROTOCOLO:</span><span class="valor">#${sol.id}</span></div>
+            <div class="item"><span class="label">DATA:</span><span class="valor">${dataF}</span></div>
+            <div class="item"><span class="label">AGRICULTOR:</span><span class="valor">${sol.agricultor?.nome || "---"}</span></div>
+            <div class="item"><span class="label">CPF:</span><span class="valor">${sol.agricultor?.cpf || "---"}</span></div>
+            <div class="item"><span class="label">PROPRIEDADE:</span><span class="valor">${sol.propriedade?.terreno || "---"}</span></div>
+            <div class="item"><span class="label">SERVIÇO:</span><span class="valor">${sol.servico?.nome_servico || "---"}</span></div>
+            <div class="item"><span class="label">STATUS:</span><span class="valor">${sol.status}</span></div>
+            <div class="item"><span class="label">MÁQUINA:</span><span class="valor">${sol.veiculo?.nome || "Aguardando"}</span></div>
+          </div>
+
+          ${obs}
+          ${textoAteste}
+
+          <div class="assinaturas">
+            <div class="ass-box">
+                <strong>SECRETÁRIO DE AGRICULTURA</strong><br/>Assinatura / Carimbo
+            </div>
+            <div class="ass-box">
+                <strong>${sol.agricultor?.nome || "BENEFICIÁRIO"}</strong><br/>Beneficiário
+            </div>
+          </div>
+
+          <p style="text-align: center; font-size: 10px; margin-top: 50px; color: #666;">Documento gerado em ${new Date().toLocaleDateString()}</p>
+        </body>
+      </html>
+    `;
+
+    // 4. Escreve no Iframe e Imprime
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(conteudo);
+    doc.close();
+
+    // Pequeno delay para garantir que o navegador renderizou o HTML interno
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        // Remove o iframe depois (opcional, para limpar memória)
+        setTimeout(() => { document.body.removeChild(iframe); }, 1000);
+    }, 500);
   };
 
-  const handleSalvarEdicao = async () => {
-    try {
-      const payload = { ...editData };
-      if (payload.veiculo_id === "") payload.veiculo_id = null;
-      
-      await updateSolicitacao(solicitacaoSelecionada.id, payload);
-      toast({ title: "Solicitação Atualizada!", status: "success", duration: 3000 });
-      onEditClose();
-      fetchData();
-    } catch (error) {
-      toast({ title: "Erro ao editar.", status: "error" });
-    }
+  const getStatusColor = (st) => {
+    if (st === 'CONCLUÍDA') return 'green';
+    if (st === 'APROVADA') return 'blue';
+    if (st === 'RECUSADA' || st === 'CANCELADA') return 'red';
+    return 'yellow';
   };
-
-  const handleSubmitManual = async (values, actions) => {
-    try {
-      const dataToSubmit = { 
-        ...values, 
-        agricultor_id: parseInt(values.agricultor_id),
-        servico_id: parseInt(values.servico_id),
-        propriedade_id: parseInt(values.propriedade_id)
-      };
-      await createSolicitacao(dataToSubmit);
-      toast({ title: "Criado com sucesso!", status: "success", duration: 5000 });
-      actions.setSubmitting(false);
-      onFormClose();
-      fetchData();
-    } catch (error) {
-      toast({ title: "Erro ao criar.", status: "error", duration: 5000 });
-      actions.setSubmitting(false);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "---";
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
-
-  const getVeiculosDisponiveis = (tipoNecessario) => {
-    if (!tipoNecessario) return [];
-    return veiculos.filter(v => v.tipo === tipoNecessario && v.status === 'DISPONIVEL');
-  };
-  
-  const getVeiculosParaEdicao = () => {
-    if (!solicitacaoSelecionada?.servico?.tipo_veiculo) return [];
-    const tipo = solicitacaoSelecionada.servico.tipo_veiculo;
-    const currentId = solicitacaoSelecionada.veiculo?.id;
-    return veiculos.filter(v => 
-      (v.tipo === tipo && v.status === 'DISPONIVEL') || (v.id === currentId)
-    );
-  };
-
-  if (loading) return (<Flex justify='center' align='center' height='50vh'><Spinner size='xl' /></Flex>);
 
   return (
     <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
-      <Card>
-        <Flex justify='space-between' align='center' mb='20px'>
-          <Text fontSize='2xl' fontWeight='700' color={textColor}>Gestão de Solicitações</Text>
-          <Button colorScheme='brand' onClick={onFormOpen}>Nova Solicitação Manual</Button>
-        </Flex>
-        
-        <Table variant='simple' size='sm'>
-          <Thead>
-            <Tr>
-                <Th>Serviço</Th>
-                <Th>Agricultor</Th>
-                <Th>Veículo</Th> 
-                <Th>Data</Th>
-                <Th>Status</Th>
-                <Th>Ações</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {solicitacoes.map((sol) => {
-              const isPendente = sol.status === 'Pendente' || sol.status === 'PENDENTE';
-              const isFinalizado = sol.status === 'CANCELADA' || sol.status === 'CONCLUÍDA' || sol.status === 'RECUSADA';
-              const isAprovada = sol.status === 'APROVADA';
+      <Flex justifyContent="space-between" mb="20px" align="center">
+        <Text color={textColor} fontSize="2xl" fontWeight="700">Central de Solicitações</Text>
+        <Button leftIcon={<MdAdd />} colorScheme="brand" onClick={handleNovo}>Nova Demanda</Button>
+      </Flex>
 
-              return (
-                <Tr key={sol.id}>
-                  <Td fontWeight="bold">
-                    {sol.servico ? sol.servico.nome_servico : 'N/A'}
-                    {sol.servico?.tipo_veiculo && isPendente && (
-                        <Badge ml="2" colorScheme="purple" fontSize="0.6em">Requer {sol.servico.tipo_veiculo}</Badge>
-                    )}
-                  </Td>
-                  <Td>{sol.agricultor ? sol.agricultor.nome : 'N/A'}</Td>
-                  <Td>
-                    {sol.veiculo ? <Badge colorScheme="blue">{sol.veiculo.nome}</Badge> : <Text fontSize="xs" color="gray.400">-</Text>}
-                  </Td>
-                  <Td>{formatDate(sol.data_solicitacao)}</Td>
-                  <Td>
-                    <Badge colorScheme={
-                        sol.status === 'APROVADA' ? 'green' : 
-                        sol.status === 'RECUSADA' || sol.status === 'CANCELADA' ? 'red' : 'yellow'
-                    } p="5px" borderRadius="8px">
-                        {sol.status}
-                    </Badge>
-                  </Td>
-                  <Td>
-                    <Flex gap="5px">
-                        
-                        {/* --- BOTÃO DE IMPRESSÃO (NOVIDADE) --- */}
-                        {isAprovada && (
-                            <Tooltip label="Imprimir O.S.">
-                                <IconButton 
-                                    size='sm' 
-                                    colorScheme='purple' // Um destaque diferente
-                                    icon={<MdPrint />} 
-                                    onClick={() => gerarPDF(sol)} 
-                                />
-                            </Tooltip>
-                        )}
+      <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap="20px">
+        {solicitacoes.map((sol) => (
+          <Card key={sol.id} p="20px" borderLeft="4px solid" borderColor={`${getStatusColor(sol.status)}.400`}>
+            <Flex justify="space-between" mb="10px">
+                <Badge colorScheme={getStatusColor(sol.status)}>{sol.status || "PENDENTE"}</Badge>
+                <Text fontSize="xs" color="gray.400">#{sol.id}</Text>
+            </Flex>
+            <Flex align="center" mb="10px">
+              <Icon as={MdAssignment} color={iconColor} w="20px" h="20px" mr="10px"/>
+              <Text fontWeight="bold" fontSize="md" color={textColor}>{sol.servico?.nome_servico}</Text>
+            </Flex>
+            <Text fontSize="sm" color="gray.500"><strong>Agricultor:</strong> {sol.agricultor?.nome}</Text>
+            <Text fontSize="sm" color="gray.500"><strong>Local:</strong> {sol.propriedade?.terreno}</Text>
+            <Text fontSize="sm" color="gray.500"><strong>Data:</strong> {new Date(sol.data_solicitacao).toLocaleDateString()}</Text>
+            {sol.veiculo && <Text fontSize="sm" color="brand.500" fontWeight="bold" mt="1">🚜 {sol.veiculo.nome}</Text>}
 
-                        {/* Ações de Aprovação/Recusa */}
-                        {isPendente ? (
-                            <>
-                                <Tooltip label="Aprovar"><IconButton size='sm' colorScheme='green' icon={<CheckIcon />} onClick={() => handleAbrirAprovacao(sol)} /></Tooltip>
-                                <Tooltip label="Recusar"><IconButton size='sm' colorScheme='red' icon={<CloseIcon />} onClick={() => handleAbrirRecusa(sol)} /></Tooltip>
-                            </>
-                        ) : null}
+            <Flex justify="space-between" mt="15px">
+               {/* Chama a nova função de impressão */}
+               <Button size="sm" variant="ghost" colorScheme="gray" leftIcon={<MdPrint />} onClick={() => imprimirDocumento(sol)}>
+                 Imprimir
+               </Button>
+               <Button size="sm" variant="outline" colorScheme="brand" leftIcon={<MdEdit />} onClick={() => handleEditar(sol)}>
+                 Gerenciar
+               </Button>
+            </Flex>
+          </Card>
+        ))}
+      </SimpleGrid>
 
-                        {/* Botão Editar */}
-                        {!isFinalizado && (
-                           <Tooltip label="Editar">
-                              <IconButton 
-                                size='sm' 
-                                colorScheme='brand' 
-                                icon={<MdEdit />} 
-                                onClick={() => handleAbrirEditar(sol)} 
-                              />
-                           </Tooltip>
-                        )}
-
-                        {/* Botão Cancelar (Laranja) */}
-                        {sol.status !== 'CANCELADA' && (
-                           <Tooltip label="Cancelar Pedido">
-                               <IconButton 
-                                    size='sm' 
-                                    colorScheme='orange' 
-                                    icon={<MdDeleteForever />} 
-                                    onClick={() => handleAbrirCancelar(sol)} 
-                                />
-                           </Tooltip>
-                        )}
-                    </Flex>
-                  </Td>
-                </Tr>
-              );
-            })}
-          </Tbody>
-        </Table>
-      </Card>
-      
-      {/* MODAIS (CÓDIGO IGUAL AO ANTERIOR) */}
-      <Modal isOpen={isApproveOpen} onClose={onApproveClose} isCentered>
+      {/* MODAL (FORMULÁRIO) */}
+      <Modal isOpen={isOpen} onClose={onClose} size="lg">
         <ModalOverlay />
         <ModalContent>
-            <ModalHeader>Aprovar Solicitação</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
+          <ModalHeader>{solicitacaoSelecionada ? "Gerenciar Demanda" : "Nova Demanda"}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Flex gap="4" mb="4">
+                <FormControl><FormLabel>Data</FormLabel><Input type="date" value={dataSolicitacao} readOnly /></FormControl>
                 {solicitacaoSelecionada && (
-                    <>
-                        <Text mb="20px">Agricultor: {solicitacaoSelecionada.agricultor?.nome}</Text>
-                        {solicitacaoSelecionada.servico?.tipo_veiculo ? (
-                            <FormControl isRequired>
-                                <FormLabel>Veículo Disponível</FormLabel>
-                                {getVeiculosDisponiveis(solicitacaoSelecionada.servico.tipo_veiculo).length > 0 ? (
-                                    <Select placeholder="Selecione..." value={veiculoSelecionadoId} onChange={(e) => setVeiculoSelecionadoId(e.target.value)}>
-                                        {getVeiculosDisponiveis(solicitacaoSelecionada.servico.tipo_veiculo).map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
-                                    </Select>
-                                ) : (
-                                    <Alert status="error"><AlertIcon />Sem {solicitacaoSelecionada.servico.tipo_veiculo} disponível.</Alert>
-                                )}
-                            </FormControl>
-                        ) : (
-                            <Alert status="info"><AlertIcon />Serviço manual (sem veículo).</Alert>
-                        )}
-                    </>
+                    <FormControl>
+                        <FormLabel>Status</FormLabel>
+                        <Select value={status} onChange={(e) => setStatus(e.target.value)} bg={getStatusColor(status) + ".50"}>
+                            <option value="PENDENTE">PENDENTE</option>
+                            <option value="APROVADA">APROVADA (Em Execução)</option>
+                            <option value="CONCLUÍDA">CONCLUÍDA (Finalizada)</option>
+                            <option value="RECUSADA">RECUSADA</option>
+                        </Select>
+                    </FormControl>
                 )}
-            </ModalBody>
-            <ModalFooter>
-                <Button variant="ghost" mr={3} onClick={onApproveClose}>Cancelar</Button>
-                <Button colorScheme="green" onClick={handleConfirmarAprovacao}>Confirmar</Button>
-            </ModalFooter>
+            </Flex>
+            <FormControl mb="4" isRequired><FormLabel>Propriedade</FormLabel>
+              <Select placeholder="Selecione..." value={propriedadeId} onChange={(e) => setPropriedadeId(e.target.value)}>
+                {propriedades.map(p => <option key={p.id} value={p.id}>{p.terreno || p.nome || `Propriedade #${p.id}`}</option>)}
+              </Select>
+            </FormControl>
+            <FormControl mb="4" isRequired><FormLabel>Serviço</FormLabel>
+              <Select placeholder="Selecione..." value={servicoId} onChange={(e) => setServicoId(e.target.value)}>
+                {servicos.map(s => <option key={s.id} value={s.id}>{s.nome_servico}</option>)}
+              </Select>
+            </FormControl>
+            {solicitacaoSelecionada && status !== 'RECUSADA' && (
+                <Box p="3" bg="gray.50" borderRadius="md" mb="4" border="1px dashed" borderColor="gray.300">
+                    <FormControl>
+                        <FormLabel color="brand.600" fontWeight="bold">Alocar Máquina</FormLabel>
+                        <Select placeholder="Escolha a máquina..." value={veiculoId} onChange={(e) => setVeiculoId(e.target.value)} bg="white">
+                            <option value="">-- Aguardando --</option>
+                            {veiculos.map(v => <option key={v.id} value={v.id}>{v.nome} - {v.placa} ({v.status})</option>)}
+                        </Select>
+                    </FormControl>
+                </Box>
+            )}
+            {status === 'RECUSADA' && (
+                <FormControl mb="4" isRequired>
+                    <FormLabel color="red.500">Motivo da Recusa</FormLabel>
+                    <Input placeholder="Ex: Chuvas fortes..." value={motivoRecusa} onChange={(e) => setMotivoRecusa(e.target.value)} borderColor="red.300" />
+                </FormControl>
+            )}
+            <FormControl><FormLabel>Observações</FormLabel><Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} /></FormControl>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onClose}>Cancelar</Button>
+            <Button colorScheme="brand" onClick={handleSalvar}>Salvar</Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
-
-      <Modal isOpen={isRefuseOpen} onClose={onRefuseClose} isCentered>
-        <ModalOverlay />
-        <ModalContent>
-            <ModalHeader>Recusar Solicitação</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-                <Text mb="10px">Motivo da recusa:</Text>
-                <Textarea placeholder="Ex: Trator quebrou..." value={motivoRecusa} onChange={(e) => setMotivoRecusa(e.target.value)} />
-            </ModalBody>
-            <ModalFooter>
-                <Button variant="ghost" mr={3} onClick={onRefuseClose}>Voltar</Button>
-                <Button colorScheme="red" onClick={handleConfirmarRecusa}>Recusar</Button>
-            </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      <Modal isOpen={isCancelOpen} onClose={onCancelClose} isCentered>
-        <ModalOverlay />
-        <ModalContent>
-            <ModalHeader>Cancelar Solicitação</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-                <Alert status="warning" borderRadius="md">
-                    <AlertIcon />
-                    Tem certeza? O status mudará para "CANCELADA" e o trator será liberado.
-                </Alert>
-            </ModalBody>
-            <ModalFooter>
-                <Button variant="ghost" mr={3} onClick={onCancelClose}>Voltar</Button>
-                <Button colorScheme="red" onClick={handleConfirmarCancelar}>Sim, Cancelar</Button>
-            </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      <Modal isOpen={isEditOpen} onClose={onEditClose} isCentered>
-        <ModalOverlay />
-        <ModalContent>
-            <ModalHeader>Editar Solicitação</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-               <FormControl mb={4}>
-                   <FormLabel>Data de Execução</FormLabel>
-                   <Input type="date" value={editData.data_execucao} onChange={(e) => setEditData({...editData, data_execucao: e.target.value})} />
-               </FormControl>
-               {solicitacaoSelecionada?.servico?.tipo_veiculo && (
-                   <FormControl>
-                       <FormLabel>Trocar Veículo</FormLabel>
-                       <Select value={editData.veiculo_id} onChange={(e) => setEditData({...editData, veiculo_id: e.target.value})}>
-                           <option value="">Sem veículo</option>
-                           {getVeiculosParaEdicao().map(v => (
-                               <option key={v.id} value={v.id}>{v.nome} {v.status === 'EM_USO' && v.id !== solicitacaoSelecionada.veiculo?.id ? '(Ocupado)' : ''}</option>
-                           ))}
-                       </Select>
-                   </FormControl>
-               )}
-            </ModalBody>
-            <ModalFooter>
-                <Button variant="ghost" mr={3} onClick={onEditClose}>Cancelar</Button>
-                <Button colorScheme="blue" onClick={handleSalvarEdicao}>Salvar Alterações</Button>
-            </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      <Formik initialValues={{ servico_id: '', agricultor_id: '', propriedade_id: '', status: 'Pendente' }} validationSchema={SolicitacaoSchema} onSubmit={handleSubmitManual}>
-        {(props) => {
-          const propriedadesDoAgricultor = propriedades.filter(p => p.agricultor_id === parseInt(props.values.agricultor_id));
-          return (
-            <Modal isOpen={isFormOpen} onClose={onFormClose}><ModalOverlay /><ModalContent>
-              <Form>
-                <ModalHeader>Nova Solicitação</ModalHeader><ModalCloseButton />
-                <ModalBody>
-                  <Field name='servico_id'>{({ field, form }) => (
-                    <FormControl isInvalid={form.errors.servico_id && form.touched.servico_id}><FormLabel>Serviço</FormLabel><Select {...field} placeholder="Selecione...">{servicos.map(s => <option key={s.id} value={s.id}>{s.nome_servico}</option>)}</Select></FormControl>
-                  )}</Field>
-                  <Field name='agricultor_id'>{({ field, form }) => (
-                    <FormControl mt={4} isInvalid={form.errors.agricultor_id && form.touched.agricultor_id}><FormLabel>Agricultor</FormLabel><Select {...field} placeholder="Selecione..." onChange={(e) => {props.setFieldValue('agricultor_id', e.target.value); props.setFieldValue('propriedade_id', '');}}>{agricultores.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}</Select></FormControl>
-                  )}</Field>
-                  <Field name='propriedade_id'>{({ field, form }) => (
-                    <FormControl mt={4} isInvalid={form.errors.propriedade_id && form.touched.propriedade_id}><FormLabel>Propriedade</FormLabel><Select {...field} placeholder="Selecione..." disabled={!props.values.agricultor_id}>{propriedadesDoAgricultor.map(p => <option key={p.id} value={p.id}>{p.terreno}</option>)}</Select></FormControl>
-                  )}</Field>
-                </ModalBody>
-                <ModalFooter><Button colorScheme='brand' type='submit' isLoading={props.isSubmitting}>Salvar</Button></ModalFooter>
-              </Form>
-            </ModalContent></Modal>
-          )
-        }}
-      </Formik>
     </Box>
   );
 }

@@ -14,6 +14,7 @@ import Profile from 'views/admin/profile';
 import Veiculos from 'views/admin/Veiculos'; 
 import { MdDirectionsCar } from 'react-icons/md';
 
+
 // Auth Imports
 import SignIn from 'views/auth/signIn';
 import SignUp from 'views/auth/signUp';
@@ -60,11 +61,11 @@ const routes = [
     component: Servicos, 
   },
   {
-    name: 'Veículos', 
-    layout: '/admin',
-    path: '/veiculos',
-    icon: <Icon as={MdDirectionsCar} width="20px" height="20px" color="inherit" />,
-    component: Veiculos, // <--- Importe o componente lá em cima!
+    name: "Frota de Veículos",
+    layout: "/admin",
+    path: "/veiculos",
+    icon: <Icon as={MdDirectionsCar} width='20px' height='20px' color='inherit' />,
+    component: Veiculos,
   },
 
   // --- ROTAS DO PRODUTOR ---

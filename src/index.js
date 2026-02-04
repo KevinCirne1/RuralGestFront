@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { HashRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { ChakraProvider } from '@chakra-ui/react';
 import theme from 'theme/theme';
+import './index.css';
 
 // Layouts
 import AdminLayout from 'layouts/admin'; // <--- Vamos usar ESSE para tudo
