@@ -1,3 +1,5 @@
+// src/contexts/AuthContext.js
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -12,7 +14,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  
   useEffect(() => {
     const storedAuthData = localStorage.getItem('authData');
     if (storedAuthData) {
@@ -22,36 +23,39 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Função de Login
-  const login = async (login, senha) => {
+  const login = async (loginInput, senhaInput) => {
     try {
+      // Faz a requisição enviando "login" e "senha" (chaves exatas do Python)
       const response = await axios.post(`${API_URL}/login`, {
-        login: login,
-        senha: senha,
+        login: loginInput,
+        senha: senhaInput,
       });
 
-      
       const userData = response.data;
-      
+
+      // Estrutura os dados para salvar
       const newAuthData = {
-       
-        user: userData,
+        user: userData, // Aqui deve vir { id, nome, perfil, ... }
       };
 
-      
       localStorage.setItem('authData', JSON.stringify(newAuthData));
-      
       setAuthData(newAuthData);
 
-      
-      if (newAuthData.user.perfil === 'gestor') {
-        navigate('/admin/default'); 
+      // --- LÓGICA DE REDIRECIONAMENTO INTELIGENTE (ATUALIZADA) ---
+      // Verifica o perfil para mandar para a tela certa
+      if (newAuthData.user.perfil === 'gestor' || newAuthData.user.perfil === 'admin') {
+        navigate('/admin/dashboard'); 
+      } else if (newAuthData.user.perfil === 'agricultor') {
+        // MUDANÇA AQUI: Agora vai para o Painel (Dashboard) com os botões grandes
+        navigate('/produtor/dashboard'); 
       } else {
+        // Fallback caso não tenha perfil definido
         navigate('/'); 
       }
 
     } catch (error) {
       console.error("Erro no login:", error);
-      throw error;
+      throw error; // Lança o erro para o componente SignIn exibir o Toast
     }
   };
 
@@ -79,7 +83,6 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-
 
 export const useAuth = () => {
   return useContext(AuthContext);

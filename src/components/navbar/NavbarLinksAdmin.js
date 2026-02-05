@@ -16,11 +16,10 @@ import {
   Portal,
 } from '@chakra-ui/react';
 // Custom Components
-import { SearchBar } from 'components/navbar/searchBar/SearchBar';
 import { SidebarResponsive } from 'components/sidebar/Sidebar';
 import PropTypes from 'prop-types';
-import React, { useState, useEffect } from 'react';
-// Import NavLink e useLocation para saber onde estamos
+import React, { useState, useEffect, useCallback } from 'react';
+// Import NavLink e useLocation
 import { NavLink, useLocation } from 'react-router-dom';
 
 // Assets
@@ -40,7 +39,7 @@ export default function HeaderLinks(props) {
   
   const [notificacoes, setNotificacoes] = useState([]);
 
-  // --- LÓGICA INTELIGENTE DE ROTA ---
+  // --- LÓGICA DE ROTA ---
   const profilePath = location.pathname.includes('/produtor') 
     ? '/produtor/profile' 
     : '/admin/profile';
@@ -58,22 +57,28 @@ export default function HeaderLinks(props) {
   const bgNotificacaoNaoLida = useColorModeValue("blue.50", "navy.700");
   const bgHoverNotificacao = useColorModeValue("gray.100", "gray.700");
 
-  const carregarNotificacoes = async () => {
-    if (authData?.user?.id) {
-      try {
-        const response = await getNotificacoes(authData.user.id);
-        setNotificacoes(response.data);
-      } catch (error) {
+  // --- BUSCA DE NOTIFICAÇÕES COM TRATAMENTO DE ERRO ---
+  const carregarNotificacoes = useCallback(async () => {
+    if (!authData?.user?.id) return;
+
+    try {
+      const response = await getNotificacoes(authData.user.id);
+      if (response && response.data) {
+        setNotificacoes(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch (error) {
+      // Silencia erros 404 para não poluir o console do produtor/admin
+      if (error.response?.status !== 404) {
         console.error("Erro ao buscar notificações:", error);
       }
     }
-  };
+  }, [authData]);
 
   useEffect(() => {
     carregarNotificacoes();
-    const intervalo = setInterval(carregarNotificacoes, 30000);
+    const intervalo = setInterval(carregarNotificacoes, 30000); // 30 segundos
     return () => clearInterval(intervalo);
-  }, [authData]);
+  }, [carregarNotificacoes]);
 
   const handleLer = async (notificacao) => {
     if (!notificacao.lida) {
@@ -101,22 +106,6 @@ export default function HeaderLinks(props) {
       borderRadius="30px"
       boxShadow={shadow}
     >
-      {/* --- BUSCA GLOBAL DESATIVADA PARA O TCC --- 
-          Opção estratégica: Como a busca global não está implementada no backend,
-          é melhor ocultar o componente para não gerar erro na banca.
-      */}
-      {/* <SearchBar
-        mb={() => {
-          if (secondary) {
-            return { base: '10px', md: 'unset' };
-          }
-          return 'unset';
-        }}
-        me="10px"
-        borderRadius="30px"
-      /> 
-      */}
-
       <SidebarResponsive routes={routes} />
       
       {/* MENU NOTIFICAÇÕES */}
@@ -177,7 +166,7 @@ export default function HeaderLinks(props) {
             </Flex>
             <Flex flexDirection="column">
                 {notificacoes.length === 0 ? (
-                <Text fontSize="sm" color="gray.500" p="10px">Nenhuma notificação.</Text>
+                <Text fontSize="sm" color="gray.500" p="10px">Nenhuma notificação disponível.</Text>
                 ) : (
                 notificacoes.map((notif) => (
                     <MenuItem
@@ -196,7 +185,7 @@ export default function HeaderLinks(props) {
                         {notif.mensagem}
                         </Text>
                         <Text fontSize='xs' color="gray.400" mt="1">
-                        {new Date(notif.data_criacao).toLocaleString()}
+                        {notif.data_criacao ? new Date(notif.data_criacao).toLocaleString() : ''}
                         </Text>
                     </Flex>
                     </MenuItem>
@@ -265,7 +254,6 @@ export default function HeaderLinks(props) {
                 </Text>
             </Flex>
             <Flex flexDirection="column" p="10px">
-                
                 <MenuItem
                 _hover={{ bg: 'none' }}
                 _focus={{ bg: 'none' }}

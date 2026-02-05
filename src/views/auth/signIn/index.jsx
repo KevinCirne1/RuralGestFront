@@ -2,104 +2,220 @@
 
 import React from 'react';
 import {
-  Box, Button, Flex, FormControl, FormLabel, FormErrorMessage, Heading, Icon,
-  Input, InputGroup, InputRightElement, Text, useColorModeValue, useToast
+  Box,
+  Button,
+  Flex,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
+  Heading,
+  Icon,
+  Input,
+  InputGroup,
+  InputRightElement,
+  Text,
+  useColorModeValue,
+  useToast,
+  VStack
 } from '@chakra-ui/react';
 
-import { NavLink, Navigate } from 'react-router-dom'; 
-import DefaultAuth from 'layouts/auth/Default';
-
+import { NavLink, Navigate } from 'react-router-dom';
 import { MdOutlineRemoveRedEye } from 'react-icons/md';
 import { RiEyeCloseLine } from 'react-icons/ri';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 
+// Importa o contexto de autenticação
 import { useAuth } from 'contexts/AuthContext';
-const illustration = null;
-
 
 function SignIn() {
-  const textColor = useColorModeValue('navy.700', 'white');
-  const textColorSecondary = 'gray.400';
-  const textColorBrand = useColorModeValue('brand.500', 'white');
+  // --- 1. CONFIGURAÇÕES VISUAIS ---
+  const bgForm = useColorModeValue('white', 'gray.800');
+  const textColor = useColorModeValue('gray.800', 'white');
+  const textColorSecondary = 'gray.500';
+  const brandColor = 'brand.500'; 
+  const inputBorder = useColorModeValue('gray.200', 'gray.600');
+  const inputBg = useColorModeValue('gray.50', 'gray.700');
+
   const [show, setShow] = React.useState(false);
   const handleClick = () => setShow(!show);
   const toast = useToast();
 
-  
-  const { login, authData } = useAuth(); 
+  const { login, authData } = useAuth();
 
+  // --- 2. LÓGICA DE LOGIN ---
   const handleLogin = async (values, actions) => {
     try {
+      // Chama a função login passando os campos exatos que o Python espera
       await login(values.login, values.senha);
+      
       toast({
-        title: "Login bem-sucedido!",
-        description: "Redirecionando para o painel.",
+        title: "Bem-vindo de volta!",
         status: "success",
         duration: 3000,
         isClosable: true,
+        position: "top-right"
       });
+      
     } catch (error) {
+      console.error("Erro no login:", error);
       toast({
-        title: "Erro no Login",
-        description: "Usuário ou senha inválidos. Tente novamente.",
+        title: "Falha no acesso",
+        description: "Usuário ou senha incorretos. Verifique suas credenciais.",
         status: "error",
         duration: 5000,
         isClosable: true,
+        position: "top-right"
       });
     } finally {
       actions.setSubmitting(false);
     }
   };
 
-  
+  // Se já estiver logado, redireciona para a página correta baseada no perfil
   if (authData) {
-    if (authData.user.perfil === 'agricultor') {
-      return <Navigate to="/produtor" replace />;
+    if (authData.user?.perfil === 'agricultor') {
+        // --- CORREÇÃO AQUI ---
+        // Agora ele vai para o PAINEL COM BOTÕES, e não direto para a lista
+        return <Navigate to="/produtor/dashboard" replace />;
     }
-    return <Navigate to="/admin" replace />;
+    // Admin, Gestor ou Técnico vão para o Dashboard Admin
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return (
-    <DefaultAuth illustrationBackground={illustration} image={illustration}>
-      <Flex maxW={{ base: '100%', md: 'max-content' }} w='100%' mx={{ base: 'auto', lg: '0px' }} me='auto' h='100%'
-        alignItems='start' justifyContent='center' mb={{ base: '30px', md: '60px' }} px={{ base: '25px', md: '0px' }}
-        mt={{ base: '40px', md: '14vh' }} flexDirection='column'
+    <Flex position='relative' h='100vh' w='100%' overflow='hidden'>
+      
+      {/* ================= LADO ESQUERDO: FORMULÁRIO ================= */}
+      <Flex
+        h='100%'
+        w={{ base: '100%', md: '50%', lg: '45%' }}
+        bg={bgForm}
+        justifyContent='center'
+        alignItems='center'
+        direction='column'
+        p={{ base: '30px', md: '60px', lg: '80px' }}
       >
-        <Box me='auto'>
-          <Heading color={textColor} fontSize='36px' mb='10px'>Acessar Sistema</Heading>
-          <Text mb='36px' ms='4px' color={textColorSecondary} fontWeight='400' fontSize='md'>
-            Digite seu login e senha para entrar!
-          </Text>
-        </Box>
-        <Flex zIndex='2' direction='column' w={{ base: '100%', md: '420px' }} maxW='100%' background='transparent'
-          borderRadius='15px' mx={{ base: 'auto', lg: 'unset' }} me='auto' mb={{ base: '20px', md: 'auto' }}
-        >
+        <Box w='100%' maxW='450px'>
+          {/* Cabeçalho */}
+          <VStack align='start' spacing={3} mb='40px'>
+            <Heading color={textColor} fontSize={{ base: '32px', md: '40px' }} fontWeight='800' lineHeight='1.1'>
+              Acessar <br/>
+              <Text as="span" color={brandColor}>RuralGest</Text>
+            </Heading>
+            <Text color={textColorSecondary} fontSize='lg'>
+              Entre com suas credenciais para gerenciar o sistema.
+            </Text>
+          </VStack>
+
+          {/* Form */}
           <Formik
             initialValues={{ login: '', senha: '' }}
             validationSchema={Yup.object({
-              login: Yup.string().required('Login é obrigatório'),
+              login: Yup.string().required('Usuário é obrigatório'),
               senha: Yup.string().required('Senha é obrigatória'),
             })}
             onSubmit={handleLogin}
           >
             {(props) => (
               <Form>
-                <Field name='login'>{({ field, form }) => (<FormControl isInvalid={form.errors.login && form.touched.login}><FormLabel ms='4px' fontSize='sm' fontWeight='500' color={textColor} mb='8px'>Login*</FormLabel><Input {...field} variant='auth' fontSize='sm' placeholder='ex: ana.gestora' mb='24px' /><FormErrorMessage>{form.errors.login}</FormErrorMessage></FormControl>)}</Field>
-                <Field name='senha'>{({ field, form }) => (<FormControl isInvalid={form.errors.senha && form.touched.senha}><FormLabel ms='4px' fontSize='sm' fontWeight='500' color={textColor} display='flex'>Senha*</FormLabel><InputGroup size='md'><Input {...field} fontSize='sm' placeholder='Digite sua senha' mb='24px' size='lg' type={show ? 'text' : 'password'} variant='auth' /><InputRightElement display='flex' alignItems='center' mt='4px'><Icon color={textColorSecondary} _hover={{ cursor: 'pointer' }} as={show ? RiEyeCloseLine : MdOutlineRemoveRedEye} onClick={handleClick} /></InputRightElement></InputGroup><FormErrorMessage>{form.errors.senha}</FormErrorMessage></FormControl>)}</Field>
-                <Button fontSize='sm' variant='brand' fontWeight='500' w='100%' h='50' mb='24px' type='submit' isLoading={props.isSubmitting}>Entrar</Button>
+                <VStack spacing={5}>
+                  
+                  {/* CAMPO USUÁRIO (LOGIN) */}
+                  <Field name='login'>
+                    {({ field, form }) => (
+                      <FormControl isInvalid={form.errors.login && form.touched.login}>
+                        <FormLabel fontWeight='600' color={textColor} ml={1}>Usuário (Email)</FormLabel>
+                        <Input
+                          {...field}
+                          variant='outline'
+                          placeholder='ex: admin@gmail.com'
+                          size='lg' h='56px' bg={inputBg} borderColor={inputBorder} borderRadius='16px'
+                          _focus={{ borderColor: brandColor, boxShadow: `0 0 0 1px ${brandColor}`, bg: bgForm }}
+                        />
+                        <FormErrorMessage ml={1}>{form.errors.login}</FormErrorMessage>
+                      </FormControl>
+                    )}
+                  </Field>
+
+                  {/* CAMPO SENHA */}
+                  <Field name='senha'>
+                    {({ field, form }) => (
+                      <FormControl isInvalid={form.errors.senha && form.touched.senha}>
+                        <FormLabel fontWeight='600' color={textColor} ml={1}>Senha</FormLabel>
+                        <InputGroup size='lg'>
+                          <Input
+                            {...field}
+                            placeholder='Digite sua senha'
+                            type={show ? 'text' : 'password'}
+                            variant='outline'
+                            size='lg' h='56px' bg={inputBg} borderColor={inputBorder} borderRadius='16px'
+                            _focus={{ borderColor: brandColor, boxShadow: `0 0 0 1px ${brandColor}`, bg: bgForm }}
+                          />
+                          <InputRightElement h='56px' width='50px' display='flex' alignItems='center'>
+                            <Icon color={textColorSecondary} as={show ? RiEyeCloseLine : MdOutlineRemoveRedEye} onClick={handleClick} cursor='pointer' w='22px' h='22px' />
+                          </InputRightElement>
+                        </InputGroup>
+                        <FormErrorMessage ml={1}>{form.errors.senha}</FormErrorMessage>
+                      </FormControl>
+                    )}
+                  </Field>
+
+                  <Button fontSize='lg' variant='solid' colorScheme='brand' fontWeight='700' w='100%' h='56px' borderRadius='16px' type='submit' isLoading={props.isSubmitting} mt={4} boxShadow='lg'>
+                    Entrar
+                  </Button>
+                </VStack>
               </Form>
             )}
           </Formik>
-          <Flex flexDirection='column' justifyContent='center' alignItems='start' maxW='100%' mt='0px'>
-            <Text color='gray.400' fontWeight='400' fontSize='14px'>
-              Não é cadastrado?
-              <NavLink to='/auth/sign-up'><Text color={textColorBrand} as='span' ms='5px' fontWeight='500'>Criar uma conta</Text></NavLink>
+
+          <Flex justifyContent='center' alignItems='center' mt='30px'>
+            <Text color={textColorSecondary} fontSize='md'>
+              Ainda não tem acesso?
+              <NavLink to='/auth/sign-up'>
+                <Text color={brandColor} as='span' ms='5px' fontWeight='700' _hover={{ textDecoration: 'underline' }}>
+                  Crie sua conta
+                </Text>
+              </NavLink>
             </Text>
           </Flex>
-        </Flex>
+        </Box>
       </Flex>
-    </DefaultAuth>
+
+      {/* ================= LADO DIREITO: IMAGEM ================= */}
+      <Flex
+        w={{ base: '0%', md: '50%', lg: '55%' }}
+        h='100%'
+        display={{ base: 'none', md: 'flex' }}
+        position='relative'
+        justifyContent='center'
+        alignItems='flex-end'
+        p='80px'
+        bg='gray.900'
+      >
+        <Box
+          position='absolute' top='0' left='0' w='100%' h='100%'
+          bgImage="url('https://images.unsplash.com/photo-1560493676-04071c5f467b?q=80&w=1074&auto=format&fit=crop')"
+          bgSize='cover'
+          bgPosition='center'
+          zIndex={0}
+        />
+        <Box
+          position='absolute' top='0' left='0' w='100%' h='100%'
+          bgGradient="linear(to-t, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.1) 100%)"
+          zIndex={1}
+        />
+        <VStack position='relative' zIndex={2} align='start' spacing={2} maxW='600px' mb='40px'>
+          <Heading color='white' fontSize={{ md: '40px', lg: '50px' }} fontWeight='800' lineHeight='1.2' textShadow="2px 2px 4px rgba(0,0,0,0.6)">
+            Tecnologia e <br/>Gestão no Campo.
+          </Heading>
+          <Text color='gray.200' fontSize='xl' fontWeight='400' textShadow="1px 1px 2px rgba(0,0,0,0.6)">
+            A solução completa para o gerenciamento de máquinas e serviços agrícolas.
+          </Text>
+        </VStack>
+      </Flex>
+
+    </Flex>
   );
 }
 

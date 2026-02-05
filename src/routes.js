@@ -27,7 +27,7 @@ const routes = [
   {
     name: 'Dashboard Admin',
     layout: '/admin',
-    path: '/default',
+    path: '/dashboard', // <--- MUDANÇA AQUI (Era /default)
     icon: <Icon as={MdHome} width="20px" height="20px" color="inherit" />,
     component: MainDashboard,
   },
@@ -60,11 +60,11 @@ const routes = [
     component: Servicos, 
   },
   {
-    name: 'Veículos', 
-    layout: '/admin',
-    path: '/veiculos',
-    icon: <Icon as={MdDirectionsCar} width="20px" height="20px" color="inherit" />,
-    component: Veiculos, // <--- Importe o componente lá em cima!
+    name: "Frota de Veículos",
+    layout: "/admin",
+    path: "/veiculos",
+    icon: <Icon as={MdDirectionsCar} width='20px' height='20px' color='inherit' />,
+    component: Veiculos,
   },
 
   // --- ROTAS DO PRODUTOR ---
