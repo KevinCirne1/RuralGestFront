@@ -3,23 +3,20 @@ import ReactDOM from 'react-dom/client';
 import { HashRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { ChakraProvider } from '@chakra-ui/react';
 import theme from 'theme/theme';
-import './index.css';
+import './assets/css/App.css'; // Verifique se o caminho do CSS está certo
 
 // Layouts
-import AdminLayout from 'layouts/admin'; // <--- Vamos usar ESSE para tudo
+import AdminLayout from 'layouts/admin'; 
 import AuthLayout from 'layouts/auth';
-// Remova o import do ProdutorLayout para não dar erro se o arquivo não existir
-// import ProdutorLayout from 'layouts/produtor'; 
+import ProdutorLayout from 'layouts/produtor'; // <--- PRECISAMOS DESTE IMPORT
 
-// Views
+// Views (opcionais aqui se o layout já gerencia, mas ok manter)
 import LandingPage from 'views/landing/LandingPage';
 import SignIn from 'views/auth/signIn';
 import SignUp from 'views/auth/signUp';
 
-// Contexto de Autenticação
+// Contexto
 import { AuthProvider } from 'contexts/AuthContext';
-
-// Componente de Proteção
 import ProtectedRoute from 'components/auth/ProtectedRoute';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
@@ -31,18 +28,20 @@ root.render(
         <AuthProvider>
           <Routes>
             {/* --- Rotas Públicas --- */}
-            <Route path={`/`} element={<LandingPage />} />
-            <Route path={`/auth/sign-in`} element={<SignIn />} />
-            <Route path={`/auth/sign-up`} element={<SignUp />} />
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/auth/sign-in" element={<SignIn />} />
+            <Route path="/auth/sign-up" element={<SignUp />} />
 
             {/* --- Rotas Protegidas --- */}
             <Route element={<ProtectedRoute />}>
-              {/* O PULO DO GATO: Usamos AdminLayout para as duas rotas! */}
-              <Route path={`/admin/*`} element={<AdminLayout />} />
-              <Route path={`/produtor/*`} element={<AdminLayout />} />
+              {/* Rota do ADMIN usa o Layout de Admin */}
+              <Route path="/admin/*" element={<AdminLayout />} />
+              
+              {/* Rota do PRODUTOR usa o Layout de Produtor (CORREÇÃO AQUI) */}
+              <Route path="/produtor/*" element={<ProdutorLayout />} />
             </Route>
             
-            {/* Rota de fallback */}
+            {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>

@@ -14,7 +14,6 @@ import Profile from 'views/admin/profile';
 import Veiculos from 'views/admin/Veiculos'; 
 import { MdDirectionsCar } from 'react-icons/md';
 
-
 // Auth Imports
 import SignIn from 'views/auth/signIn';
 import SignUp from 'views/auth/signUp';
@@ -28,7 +27,7 @@ const routes = [
   {
     name: 'Dashboard Admin',
     layout: '/admin',
-    path: '/default',
+    path: '/dashboard', // <--- MUDANÇA AQUI (Era /default)
     icon: <Icon as={MdHome} width="20px" height="20px" color="inherit" />,
     component: MainDashboard,
   },
