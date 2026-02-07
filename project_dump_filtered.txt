@@ -1,0 +1,4111 @@
+# =============================================================================
+# FICHEIRO 1: .env
+# =============================================================================
+```python:.env:.env
+GENERATE_SOURCEMAP=false
+```eof
+
+# =============================================================================
+# FICHEIRO 2: src/App.js
+# =============================================================================
+```python:App.js:src/App.js
+// src/layouts/produtor/index.js
+
+import React, { useState } from "react";
+import { Portal, Box, useDisclosure } from "@chakra-ui/react";
+import Footer from "components/footer/FooterAdmin.js";
+// Navbar e Sidebar
+import Navbar from "components/navbar/NavbarAdmin.js";
+import Sidebar from "components/sidebar/Sidebar.js";
+import { SidebarContext } from "contexts/SidebarContext";
+import { Routes, Route, Navigate } from "react-router-dom";
+import routes from "routes.js";
+
+// Estilos
+export default function ProdutorLayout(props) {
+  const { ...rest } = props;
+  
+  // Estados para abrir/fechar sidebar no mobile
+  const [fixed] = useState(false);
+  const [toggleSidebar, setToggleSidebar] = useState(false);
+  
+  // Funções do Chakra UI
+  const { onOpen } = useDisclosure();
+
+  // --- O SEGREDO ESTÁ AQUI: Filtrar apenas rotas de /produtor ---
+  const getRoutes = (routes) => {
+    return routes.map((prop, key) => {
+      // Só renderiza se o layout for '/produtor'
+      if (prop.layout === "/produtor") {
+        return (
+          <Route path={`/${prop.path}`} element={<prop.component />} key={key} />
+        );
+      }
+      return null;
+    });
+  };
+
+  // Título da página dinâmica (opcional)
+  const getActiveRoute = (routes) => {
+    let activeRoute = "Painel do Produtor";
+    for (let i = 0; i < routes.length; i++) {
+      if (window.location.href.indexOf(routes[i].layout + routes[i].path) !== -1) {
+        return routes[i].name;
+      }
+    }
+    return activeRoute;
+  };
+
+  // Texto da Navbar
+  const getActiveNavbarText = (routes) => {
+    let activeNavbar = false;
+    for (let i = 0; i < routes.length; i++) {
+      if (window.location.href.indexOf(routes[i].layout + routes[i].path) !== -1) {
+        return routes[i].name;
+      }
+    }
+    return activeNavbar;
+  };
+
+  // Filtrar rotas para a Sidebar (para não aparecer menu de admin)
+  const produtorRoutes = routes.filter(r => r.layout === "/produtor");
+
+  return (
+    <Box>
+      <SidebarContext.Provider
+        value={{
+          toggleSidebar,
+          setToggleSidebar,
+        }}>
+        
+        {/* SIDEBAR COM ROTAS FILTRADAS */}
+        <Sidebar routes={produtorRoutes} display='none' {...rest} />
+        
+        <Box
+          float='right'
+          minHeight='100vh'
+          height='100%'
+          overflow='auto'
+          position='relative'
+          maxHeight='100%'
+          w={{ base: "100%", xl: "calc( 100% - 290px )" }}
+          maxWidth={{ base: "100%", xl: "calc( 100% - 290px )" }}
+          transition='all 0.33s cubic-bezier(0.685, 0.0473, 0.346, 1)'
+          transitionDuration='.2s, .2s, .35s'
+          transitionProperty='top, bottom, width'
+          transitionTimingFunction='linear, linear, ease'>
+          
+          <Portal>
+            <Box>
+              <Navbar
+                onOpen={onOpen}
+                logoText={"RuralGest Produtor"}
+                brandText={getActiveRoute(routes)}
+                secondary={getActiveNavbarText(routes)}
+                message={getActiveNavbarText(routes)}
+                fixed={fixed}
+                {...rest}
+              />
+            </Box>
+          </Portal>
+
+          {/* CONTEÚDO DA PÁGINA */}
+          <Box mx='auto' p={{ base: "20px", md: "30px" }} pe='20px' minH='100vh' pt='50px'>
+            <Routes>
+              {getRoutes(routes)}
+              {/* Se tentar acessar /produtor puro, joga para dashboard */}
+              <Route path="/" element={<Navigate to="/produtor/dashboard" replace />} />
+            </Routes>
+          </Box>
+          
+          <Box>
+            <Footer />
+          </Box>
+        </Box>
+      </SidebarContext.Provider>
+    </Box>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 3: src/contexts/AuthContext.js
+# =============================================================================
+```python:AuthContext.js:src/contexts/AuthContext.js
+// src/contexts/AuthContext.js
+
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+
+// A URL base do back-end
+const API_URL = "http://127.0.0.1:5000";
+
+const AuthContext = createContext();
+
+export const AuthProvider = ({ children }) => {
+  const [authData, setAuthData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const storedAuthData = localStorage.getItem('authData');
+    if (storedAuthData) {
+      setAuthData(JSON.parse(storedAuthData));
+    }
+    setLoading(false);
+  }, []);
+
+  // Função de Login
+  const login = async (loginInput, senhaInput) => {
+    try {
+      // Faz a requisição enviando "login" e "senha" (chaves exatas do Python)
+      const response = await axios.post(`${API_URL}/login`, {
+        login: loginInput,
+        senha: senhaInput,
+      });
+
+      const userData = response.data;
+
+      // Estrutura os dados para salvar
+      const newAuthData = {
+        user: userData, // Aqui deve vir { id, nome, perfil, ... }
+      };
+
+      localStorage.setItem('authData', JSON.stringify(newAuthData));
+      setAuthData(newAuthData);
+
+      // --- LÓGICA DE REDIRECIONAMENTO INTELIGENTE (ATUALIZADA) ---
+      // Verifica o perfil para mandar para a tela certa
+      if (newAuthData.user.perfil === 'gestor' || newAuthData.user.perfil === 'admin') {
+        navigate('/admin/dashboard'); 
+      } else if (newAuthData.user.perfil === 'agricultor') {
+        // MUDANÇA AQUI: Agora vai para o Painel (Dashboard) com os botões grandes
+        navigate('/produtor/dashboard'); 
+      } else {
+        // Fallback caso não tenha perfil definido
+        navigate('/'); 
+      }
+
+    } catch (error) {
+      console.error("Erro no login:", error);
+      throw error; // Lança o erro para o componente SignIn exibir o Toast
+    }
+  };
+
+  // Função de Logout 
+  const logout = () => {
+    localStorage.removeItem('authData');
+    setAuthData(null);
+    navigate('/auth/sign-in');
+  };
+
+  const value = {
+    authData,
+    loading,
+    login,
+    logout,
+  };
+
+  if (loading) {
+    return <div>A carregar sessão...</div>;
+  }
+  
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  return useContext(AuthContext);
+};
+```eof
+
+# =============================================================================
+# FICHEIRO 4: src/contexts/SidebarContext.js
+# =============================================================================
+```python:SidebarContext.js:src/contexts/SidebarContext.js
+import { createContext } from "react";
+
+export const SidebarContext = createContext();
+```eof
+
+# =============================================================================
+# FICHEIRO 5: src/index.css
+# =============================================================================
+```python:index.css:src/index.css
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 6: src/index.js
+# =============================================================================
+```python:index.js:src/index.js
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { HashRouter, Route, Routes, Navigate } from 'react-router-dom';
+import { ChakraProvider } from '@chakra-ui/react';
+import theme from 'theme/theme';
+import './assets/css/App.css'; // Verifique se o caminho do CSS está certo
+
+// Layouts
+import AdminLayout from 'layouts/admin'; 
+import AuthLayout from 'layouts/auth';
+import ProdutorLayout from 'layouts/produtor'; // <--- PRECISAMOS DESTE IMPORT
+
+// Views (opcionais aqui se o layout já gerencia, mas ok manter)
+import LandingPage from 'views/landing/LandingPage';
+import SignIn from 'views/auth/signIn';
+import SignUp from 'views/auth/signUp';
+
+// Contexto
+import { AuthProvider } from 'contexts/AuthContext';
+import ProtectedRoute from 'components/auth/ProtectedRoute';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+
+root.render(
+  <React.StrictMode>
+    <ChakraProvider theme={theme}>
+      <HashRouter>
+        <AuthProvider>
+          <Routes>
+            {/* --- Rotas Públicas --- */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/auth/sign-in" element={<SignIn />} />
+            <Route path="/auth/sign-up" element={<SignUp />} />
+
+            {/* --- Rotas Protegidas --- */}
+            <Route element={<ProtectedRoute />}>
+              {/* Rota do ADMIN usa o Layout de Admin */}
+              <Route path="/admin/*" element={<AdminLayout />} />
+              
+              {/* Rota do PRODUTOR usa o Layout de Produtor (CORREÇÃO AQUI) */}
+              <Route path="/produtor/*" element={<ProdutorLayout />} />
+            </Route>
+            
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AuthProvider>
+      </HashRouter>
+    </ChakraProvider>
+  </React.StrictMode>
+);
+```eof
+
+# =============================================================================
+# FICHEIRO 7: src/layouts/admin/index.js
+# =============================================================================
+```python:index.js:src/layouts/admin/index.js
+// src/layouts/admin/index.jsx
+
+import React, { useState, useEffect } from 'react';
+import { Box, useColorModeValue, useDisclosure } from '@chakra-ui/react';
+import { Route, Routes, Navigate, useLocation } from 'react-router-dom';
+
+import Sidebar from 'components/sidebar/Sidebar';
+import Navbar from 'components/navbar/NavbarAdmin';
+import Footer from 'components/footer/FooterAdmin';
+
+import routes from 'routes.js';
+import { useAuth } from 'contexts/AuthContext';
+
+export default function AdminLayout(props) {
+  const { ...rest } = props;
+  const location = useLocation();
+  const { onOpen } = useDisclosure();
+  const { authData, loading } = useAuth();
+  const [brandText, setBrandText] = useState('Dashboard');
+  const navbarBg = useColorModeValue('rgba(244, 247, 254, 0.2)', 'rgba(11,20,55,0.5)');
+
+  // Atualiza o texto do topo (Dashboard, Perfil, etc)
+  useEffect(() => {
+    const activeRoute = routes.find(
+      (route) => window.location.href.indexOf(route.layout + route.path) !== -1
+    );
+    setBrandText(activeRoute ? activeRoute.name : 'Gestão Rural');
+  }, [location]);
+
+  // Redireciona se não estiver logado
+  if (!loading && !authData) {
+    return <Navigate to="/auth/sign-in" replace />;
+  }
+
+  // --- CORREÇÃO AQUI ---
+  // Filtra as rotas permitidas para este layout (Admin E Produtor)
+  const getActiveRoutes = (routes) => {
+    return routes.filter(route => 
+      route.layout === "/admin" || route.layout === "/produtor"
+    );
+  };
+
+  return (
+    <Box>
+      <Sidebar routes={routes} {...rest} />
+      <Box
+        float="right"
+        minHeight="100vh"
+        height="100%"
+        overflow="auto"
+        position="relative"
+        maxHeight="100%"
+        w={{ base: '100%', xl: 'calc( 100% - 290px )' }}
+        maxWidth={{ base: '100%', xl: 'calc( 100% - 290px )' }}
+        bg={navbarBg}
+      >
+        <Navbar
+          onOpen={onOpen}
+          brandText={brandText}
+          secondary={false}
+          fixed={false}
+          {...rest}
+        />
+        <Box mx="auto" p={{ base: '20px', md: '30px' }} pe="20px" minH="calc(100vh - 120px)">
+          <Routes>
+            {/* Mapeia as rotas ativas (Admin + Produtor) */}
+            {getActiveRoutes(routes).map((prop, key) => (
+              <Route
+                path={prop.path}
+                element={<prop.component />}
+                key={key}
+              />
+            ))}
+            {/* Rota padrão caso nada seja encontrado */}
+            <Route path="*" element={<Navigate to="/admin/default" replace />} />
+          </Routes>
+        </Box>
+        <Box>
+          <Footer />
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 8: src/layouts/auth/Default.js
+# =============================================================================
+```python:Default.js:src/layouts/auth/Default.js
+// Chakra imports
+import { Box, Flex, Icon, Text } from "@chakra-ui/react";
+import PropTypes from "prop-types";
+import React from "react";
+// import Footer from "components/footer/FooterAuth"; // LINHA REMOVIDA
+import FixedPlugin from "components/fixedPlugin/FixedPlugin";
+// Custom components
+import { NavLink } from "react-router-dom";
+// Assets
+import { FaChevronLeft } from "react-icons/fa";
+
+function AuthIllustration(props) {
+  const { children, illustrationBackground } = props;
+
+  return (
+    <Flex position='relative' h='max-content'>
+      <Flex
+        h={{
+          sm: "initial",
+          md: "unset",
+          lg: "100vh",
+          xl: "97vh",
+        }}
+        w='100%'
+        maxW={{ md: "66%", lg: "1313px" }}
+        mx='auto'
+        pt={{ sm: "50px", md: "0px" }}
+        px={{ lg: "30px", xl: "0px" }}
+        ps={{ xl: "70px" }}
+        justifyContent='start'
+        direction='column'>
+        
+        <NavLink
+          to='/' // Link ajustado para o Home
+          style={() => ({
+            width: "fit-content",
+            marginTop: "40px",
+          })}>
+          <Flex
+            align='center'
+            ps={{ base: "25px", lg: "0px" }}
+            pt={{ lg: "0px", xl: "0px" }}
+            w='fit-content'>
+            <Icon
+              as={FaChevronLeft}
+              me='12px'
+              h='13px'
+              w='8px'
+              color='secondaryGray.600'
+            />
+            <Text ms='0px' fontSize='sm' color='secondaryGray.600'>
+              Voltar para o Home
+            </Text>
+          </Flex>
+        </NavLink>
+
+        {children}
+
+        <Box
+          display={{ base: "none", md: "block" }}
+          h='100%'
+          minH='100vh'
+          w={{ lg: "50vw", "2xl": "44vw" }}
+          position='absolute'
+          right='0px'>
+          <Flex
+            bg={`url(${illustrationBackground})`}
+            justify='center'
+            align='center' // AJUSTE: Centralizamos o novo texto
+            w='100%'
+            h='100%'
+            bgSize='cover'
+            bgPosition='50%'
+            position='absolute'
+            borderBottomLeftRadius={{ lg: "120px", xl: "200px" }}
+            direction="column" // Adiciona o seu novo conteúdo
+          >
+            <Text color="white" fontSize="4xl" fontWeight="bold" textAlign="center" mb="4">
+              Bem-vindo ao Gestão Rural
+            </Text>
+            <Text color="whiteAlpha.800" fontSize="xl" mt="4" textAlign="center">
+              Acesso exclusivo para Produtores e Secretaria.
+            </Text>
+          </Flex>
+        </Box>
+
+        {/* <Footer /> LINHA REMOVIDA */}
+      </Flex>
+      <FixedPlugin />
+    </Flex>
+  );
+}
+
+// PROPS
+
+AuthIllustration.propTypes = {
+  illustrationBackground: PropTypes.string,
+  image: PropTypes.any,
+};
+
+export default AuthIllustration;
+```eof
+
+# =============================================================================
+# FICHEIRO 9: src/layouts/auth/index.js
+# =============================================================================
+```python:index.js:src/layouts/auth/index.js
+import React from 'react';
+import { Box, Flex } from '@chakra-ui/react';
+import { Outlet } from 'react-router-dom';
+import illustration from 'assets/img/auth/auth.png';
+
+export default function AuthLayout() {
+  return (
+    <Box>
+      <Flex position="relative" h="100vh" align="center" justify="center">
+        <Box h="100vh" w="100vw" position="absolute" top="0" left="0">
+          <img
+            src={illustration}
+            alt="Auth Illustration"
+            style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+          />
+        </Box>
+        <Flex
+          position="relative"
+          zIndex="1"
+          w="100%"
+          maxW={{ base: '100%', md: '1300px' }}
+          alignItems="center"
+          justifyContent="center"
+        >
+          {/* AQUI ESTÁ A CHAVE. O <Outlet /> renderiza as rotas filhas. */}
+          <Outlet />
+        </Flex>
+      </Flex>
+    </Box>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 10: src/layouts/produtor/index.jsx
+# =============================================================================
+```python:index.jsx:src/layouts/produtor/index.jsx
+// src/layouts/produtor/index.js
+
+import React, { useState } from "react";
+import { Portal, Box, useDisclosure } from "@chakra-ui/react";
+import Footer from "components/footer/FooterAdmin.js";
+import Navbar from "components/navbar/NavbarAdmin.js";
+import Sidebar from "components/sidebar/Sidebar.js";
+import { SidebarContext } from "contexts/SidebarContext";
+import { Routes, Route, Navigate } from "react-router-dom";
+import routes from "routes.js";
+
+export default function ProdutorLayout(props) {
+  const { ...rest } = props;
+  
+  const [fixed] = useState(false);
+  const [toggleSidebar, setToggleSidebar] = useState(false);
+  const { onOpen } = useDisclosure();
+
+  // Filtrar rotas para a Sidebar (para não aparecer menu de admin)
+  const produtorRoutes = routes.filter(r => r.layout === "/produtor");
+
+  const getRoutes = (routes) => {
+    return routes.map((prop, key) => {
+      if (prop.layout === "/produtor") {
+        return (
+          // CORREÇÃO AQUI: Removemos a "/" forçada antes de prop.path
+          <Route path={prop.path} element={<prop.component />} key={key} />
+        );
+      }
+      return null;
+    });
+  };
+
+  const getActiveRoute = (routes) => {
+    let activeRoute = "Painel do Produtor";
+    for (let i = 0; i < routes.length; i++) {
+      if (window.location.href.indexOf(routes[i].layout + routes[i].path) !== -1) {
+        return routes[i].name;
+      }
+    }
+    return activeRoute;
+  };
+
+  const getActiveNavbarText = (routes) => {
+    let activeNavbar = false;
+    for (let i = 0; i < routes.length; i++) {
+      if (window.location.href.indexOf(routes[i].layout + routes[i].path) !== -1) {
+        return routes[i].name;
+      }
+    }
+    return activeNavbar;
+  };
+
+  return (
+    <Box>
+      <SidebarContext.Provider
+        value={{
+          toggleSidebar,
+          setToggleSidebar,
+        }}>
+        
+        <Sidebar routes={produtorRoutes} display='none' {...rest} />
+        
+        <Box
+          float='right'
+          minHeight='100vh'
+          height='100%'
+          overflow='auto'
+          position='relative'
+          maxHeight='100%'
+          w={{ base: "100%", xl: "calc( 100% - 290px )" }}
+          maxWidth={{ base: "100%", xl: "calc( 100% - 290px )" }}
+          transition='all 0.33s cubic-bezier(0.685, 0.0473, 0.346, 1)'
+          transitionDuration='.2s, .2s, .35s'
+          transitionProperty='top, bottom, width'
+          transitionTimingFunction='linear, linear, ease'>
+          
+          <Portal>
+            <Box>
+              <Navbar
+                onOpen={onOpen}
+                logoText={"RuralGest Produtor"}
+                brandText={getActiveRoute(routes)}
+                secondary={getActiveNavbarText(routes)}
+                message={getActiveNavbarText(routes)}
+                fixed={fixed}
+                {...rest}
+              />
+            </Box>
+          </Portal>
+
+          <Box mx='auto' p={{ base: "20px", md: "30px" }} pe='20px' minH='100vh' pt='50px'>
+            <Routes>
+              {getRoutes(routes)}
+              {/* Redirecionamento padrão dentro do /produtor */}
+              <Route path="/" element={<Navigate to="/produtor/dashboard" replace />} />
+            </Routes>
+          </Box>
+          
+          <Box>
+            <Footer />
+          </Box>
+        </Box>
+      </SidebarContext.Provider>
+    </Box>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 11: src/routes.js
+# =============================================================================
+```python:routes.js:src/routes.js
+// src/routes.js
+
+import React from 'react';
+import { Icon } from '@chakra-ui/react';
+import { MdPerson, MdHome, MdLandscape, MdBuild, MdLock, MdAssignment, MdList } from 'react-icons/md';
+
+// Admin Imports
+import MainDashboard from 'views/admin/dashboard';
+import Agricultores from 'views/admin/Agricultores';
+import Propriedades from 'views/admin/Propriedades';
+import Servicos from 'views/admin/Servicos'; 
+import Solicitacoes from 'views/admin/Solicitacoes';
+import Profile from 'views/admin/profile'; 
+import Veiculos from 'views/admin/Veiculos'; 
+import { MdDirectionsCar } from 'react-icons/md';
+
+// Auth Imports
+import SignIn from 'views/auth/signIn';
+import SignUp from 'views/auth/signUp';
+
+// Produtor Imports
+import DashboardProdutor from 'views/produtor/DashboardProdutor'; 
+import MinhasSolicitacoes from 'views/produtor/MinhasSolicitacoes';
+
+const routes = [
+  // --- ROTAS DO PAINEL ADMIN ---
+  {
+    name: 'Dashboard Admin',
+    layout: '/admin',
+    path: '/dashboard', // <--- MUDANÇA AQUI (Era /default)
+    icon: <Icon as={MdHome} width="20px" height="20px" color="inherit" />,
+    component: MainDashboard,
+  },
+  {
+    name: 'Agricultores',
+    layout: '/admin',
+    path: '/agricultores',
+    icon: <Icon as={MdPerson} width="20px" height="20px" color="inherit" />,
+    component: Agricultores,
+  },
+  {
+    name: 'Propriedades',
+    layout: '/admin',
+    path: '/propriedades',
+    icon: <Icon as={MdLandscape} width="20px" height="20px" color="inherit" />,
+    component: Propriedades,
+  },
+  {
+    name: 'Solicitações', 
+    layout: '/admin',
+    path: '/solicitacoes', 
+    icon: <Icon as={MdAssignment} width="20px" height="20px" color="inherit" />,
+    component: Solicitacoes, 
+  },
+  {
+    name: 'Serviços', 
+    layout: '/admin',
+    path: '/servicos',
+    icon: <Icon as={MdBuild} width="20px" height="20px" color="inherit" />,
+    component: Servicos, 
+  },
+  {
+    name: "Frota de Veículos",
+    layout: "/admin",
+    path: "/veiculos",
+    icon: <Icon as={MdDirectionsCar} width='20px' height='20px' color='inherit' />,
+    component: Veiculos,
+  },
+
+  // --- ROTAS DO PRODUTOR ---
+  {
+    name: 'Painel do Produtor',
+    layout: '/produtor',
+    path: '/dashboard',
+    icon: <Icon as={MdHome} width="20px" height="20px" color="inherit" />,
+    component: DashboardProdutor,
+  },
+  {
+    name: 'Meus Pedidos',
+    layout: '/produtor',
+    path: '/minhas-solicitacoes',
+    icon: <Icon as={MdList} width="20px" height="20px" color="inherit" />,
+    component: MinhasSolicitacoes,
+  },
+
+  // --- ROTA DE PERFIL (Adicionada para ambos) ---
+  {
+    name: 'Meu Perfil',
+    layout: '/admin',
+    path: '/profile',
+    icon: <Icon as={MdPerson} width="20px" height="20px" color="inherit" />,
+    component: Profile,
+  },
+  {
+    name: 'Meu Perfil',
+    layout: '/produtor',
+    path: '/profile',
+    icon: <Icon as={MdPerson} width="20px" height="20px" color="inherit" />,
+    component: Profile,
+  },
+
+  // --- ROTAS DE AUTENTICAÇÃO ---
+  {
+    name: 'Sign In',
+    layout: '/auth',
+    path: '/sign-in',
+    icon: <Icon as={MdLock} width="20px" height="20px" color="inherit" />,
+    component: SignIn,
+  },
+  {
+    name: 'Sign Up',
+    layout: '/auth',
+    path: '/sign-up',
+    icon: <Icon as={MdLock} width="20px" height="20px" color="inherit" />,
+    component: SignUp,
+  },
+];
+
+export default routes;
+```eof
+
+# =============================================================================
+# FICHEIRO 12: src/services/agricultorService.js
+# =============================================================================
+```python:agricultorService.js:src/services/agricultorService.js
+
+
+import api from "./api"; 
+
+// Buscar TODOS os agricultores (READ)
+export const getAgricultores = () => {
+  return api.get("/agricultores");
+};
+
+// Buscar UM agricultor por ID (READ)
+export const getAgricultorById = (id) => {
+  return api.get(`/agricultores/${id}`);
+};
+
+// Criar um novo agricultor (CREATE)
+export const createAgricultor = (data) => {
+  return api.post("/agricultores", data);
+};
+
+// Atualizar um agricultor existente (UPDATE)
+export const updateAgricultor = (id, data) => {
+  return api.put(`/agricultores/${id}`, data);
+};
+
+// Deletar um agricultor (DELETE)
+export const deleteAgricultor = (id) => {
+  return api.delete(`/agricultores/${id}`);
+};
+
+//  Buscar propriedades de um agricultor específico
+export const getPropriedadesByAgricultor = (agricultorId) => {
+  return api.get(`/agricultores/${agricultorId}/propriedades`);
+};
+
+//  Criar propriedade para um agricultor específico
+export const createPropriedadeForAgricultor = (agricultorId, data) => {
+  return api.post(`/agricultores/${agricultorId}/propriedades`, data);
+};
+```eof
+
+# =============================================================================
+# FICHEIRO 13: src/services/api.js
+# =============================================================================
+```python:api.js:src/services/api.js
+import axios from "axios";
+
+
+const api = axios.create({
+  baseURL: "http://127.0.0.1:5000",
+  headers: {
+    "Content-Type": "application/json"
+  }
+});
+
+export default api;
+```eof
+
+# =============================================================================
+# FICHEIRO 14: src/services/dashboardService.js
+# =============================================================================
+```python:dashboardService.js:src/services/dashboardService.js
+import api from './api';
+
+export const getDashboardResumo = async () => {
+  try {
+    // Nova rota do backend Matheus
+    const response = await api.get('/dashboard/resumo');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao carregar resumo:", error);
+    throw error;
+  }
+};
+
+export const getDashboardGraficos = async () => {
+  try {
+    // Nova rota do backend Matheus
+    const response = await api.get('/dashboard/graficos');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao carregar gráficos:", error);
+    throw error;
+  }
+};
+```eof
+
+# =============================================================================
+# FICHEIRO 15: src/services/notificacaoService.js
+# =============================================================================
+```python:notificacaoService.js:src/services/notificacaoService.js
+import api from './api'; 
+
+export const getNotificacoes = async (usuarioId) => {
+  return await api.get('/notificacoes', {
+    params: { usuario_id: usuarioId }
+  });
+};
+
+export const marcarComoLida = async (notificacaoId) => {
+  return await api.post(`/notificacoes/${notificacaoId}/ler`);
+};
+```eof
+
+# =============================================================================
+# FICHEIRO 16: src/services/propriedadeService.js
+# =============================================================================
+```python:propriedadeService.js:src/services/propriedadeService.js
+import api from './api';
+
+// Função para buscar TODAS as propriedades de todos os agricultores (READ)
+export const getPropriedades = () => {
+    return api.get('/propriedades');
+};
+
+// Função para buscar UMA propriedade por ID (READ)
+export const getPropriedadeById = (id) => {
+    return api.get(`/propriedades/${id}`);
+};
+
+
+// A função agora espera o ID do agricultor e os dados da propriedade.
+export const createPropriedade = (agricultorId, data) => {
+    return api.post(`/agricultores/${agricultorId}/propriedades`, data);
+};
+
+// Função para ATUALIZAR uma propriedade existente (UPDATE)
+export const updatePropriedade = (id, data) => {
+    return api.put(`/propriedades/${id}`, data);
+};
+
+// Função para DELETAR uma propriedade (DELETE)
+export const deletePropriedade = (id) => {
+    return api.delete(`/propriedades/${id}`);
+    };
+```eof
+
+# =============================================================================
+# FICHEIRO 17: src/services/servicoService.js
+# =============================================================================
+```python:servicoService.js:src/services/servicoService.js
+
+
+import api from './api';
+
+// Função para buscar TODOS os serviços (READ)
+export const getServicos = () => {
+    return api.get('/servicos');
+};
+
+// Função para buscar UM serviço por ID (READ)
+export const getServicoById = (id) => {
+    return api.get(`/servicos/${id}`);
+};
+
+// Função para CRIAR um novo serviço (CREATE)
+export const createServico = (data) => {
+    return api.post('/servicos', data);
+};
+
+// Função para ATUALIZAR um serviço existente (UPDATE)
+export const updateServico = (id, data) => {
+    return api.put(`/servicos/${id}`, data);
+};
+
+// Função para DELETAR um serviço (DELETE)
+export const deleteServico = (id) => {
+    return api.delete(`/servicos/${id}`);
+};
+```eof
+
+# =============================================================================
+# FICHEIRO 18: src/services/solicitacaoService.js
+# =============================================================================
+```python:solicitacaoService.js:src/services/solicitacaoService.js
+
+
+import api from './api';
+
+// Função para buscar TODAS as solicitações (READ)
+export const getSolicitacoes = () => {
+    return api.get('/solicitacoes');
+};
+
+// Função para buscar UMA solicitação por ID (READ)
+export const getSolicitacaoById = (id) => {
+    return api.get(`/solicitacoes/${id}`);
+};
+
+// Função para CRIAR uma nova solicitação (CREATE)
+export const createSolicitacao = (data) => {
+    return api.post('/solicitacoes', data);
+};
+
+// Função para ATUALIZAR uma solicitação existente (UPDATE)
+export const updateSolicitacao = (id, data) => {
+    return api.put(`/solicitacoes/${id}`, data);
+};
+
+// Função para DELETAR uma solicitação (DELETE)
+export const deleteSolicitacao = (id) => {
+    return api.delete(`/solicitacoes/${id}`);
+};
+```eof
+
+# =============================================================================
+# FICHEIRO 19: src/services/usuarioService.js
+# =============================================================================
+```python:usuarioService.js:src/services/usuarioService.js
+import api from './api'; // Certifique-se que o arquivo api.js está configurado corretamente
+
+// Função de Cadastro Público (Sign Up)
+export const createUsuario = async (userData) => {
+    // userData deve conter: nome, login, senha, cpf, comunidade, contato, perfil
+    try {
+        // Agora aponta para /register, que cria Usuario + Agricultor
+        const response = await api.post('/register', userData);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao criar usuário:", error);
+        throw error;
+    }
+};
+
+// Função para Admin criar usuários internos (se houver essa tela)
+export const createUsuarioInterno = async (userData) => {
+    try {
+        const response = await api.post('/usuarios', userData);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao criar usuário interno:", error);
+        throw error;
+    }
+};
+
+// Listar todos os usuários (Para Admin)
+export const getUsuarios = async () => {
+    try {
+        const response = await api.get('/usuarios');
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar usuários:", error);
+        throw error;
+    }
+};
+
+// Obter usuário específico
+export const getUsuarioById = async (id) => {
+    try {
+        const response = await api.get(`/usuarios/${id}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar usuário:", error);
+        throw error;
+    }
+};
+
+// Atualizar usuário
+export const updateUsuario = async (id, userData) => {
+    try {
+        const response = await api.put(`/usuarios/${id}`, userData);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao atualizar usuário:", error);
+        throw error;
+    }
+};
+
+// Deletar usuário
+export const deleteUsuario = async (id) => {
+    try {
+        const response = await api.delete(`/usuarios/${id}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao deletar usuário:", error);
+        throw error;
+    }
+};
+```eof
+
+# =============================================================================
+# FICHEIRO 20: src/variables/charts.js
+# =============================================================================
+```python:charts.js:src/variables/charts.js
+// Daily Traffic Dashboards Default
+
+export const barChartDataDailyTraffic = [
+  {
+    name: "Daily Traffic",
+    data: [20, 30, 40, 20, 45, 50, 30],
+  },
+];
+
+export const barChartOptionsDailyTraffic = {
+  chart: {
+    toolbar: {
+      show: false,
+    },
+  },
+  tooltip: {
+    style: {
+      fontSize: "12px",
+      fontFamily: undefined,
+    },
+    onDatasetHover: {
+      style: {
+        fontSize: "12px",
+        fontFamily: undefined,
+      },
+    },
+    theme: "dark",
+  },
+  xaxis: {
+    categories: ["00", "04", "08", "12", "14", "16", "18"],
+    show: false,
+    labels: {
+      show: true,
+      style: {
+        colors: "#A3AED0",
+        fontSize: "14px",
+        fontWeight: "500",
+      },
+    },
+    axisBorder: {
+      show: false,
+    },
+    axisTicks: {
+      show: false,
+    },
+  },
+  yaxis: {
+    show: false,
+    color: "black",
+    labels: {
+      show: true,
+      style: {
+        colors: "#CBD5E0",
+        fontSize: "14px",
+      },
+    },
+  },
+  grid: {
+    show: false,
+    strokeDashArray: 5,
+    yaxis: {
+      lines: {
+        show: true,
+      },
+    },
+    xaxis: {
+      lines: {
+        show: false,
+      },
+    },
+  },
+  fill: {
+    type: "gradient",
+    gradient: {
+      type: "vertical",
+      shadeIntensity: 1,
+      opacityFrom: 0.7,
+      opacityTo: 0.9,
+      colorStops: [
+        [
+          {
+            offset: 0,
+            color: "#4318FF",
+            opacity: 1,
+          },
+          {
+            offset: 100,
+            color: "rgba(67, 24, 255, 1)",
+            opacity: 0.28,
+          },
+        ],
+      ],
+    },
+  },
+  dataLabels: {
+    enabled: false,
+  },
+  plotOptions: {
+    bar: {
+      borderRadius: 10,
+      columnWidth: "40px",
+    },
+  },
+};
+
+// Consumption Users Reports
+
+export const barChartDataConsumption = [
+  {
+    name: "PRODUCT A",
+    data: [400, 370, 330, 390, 320, 350, 360, 320, 380],
+  },
+  {
+    name: "PRODUCT B",
+    data: [400, 370, 330, 390, 320, 350, 360, 320, 380],
+  },
+  {
+    name: "PRODUCT C",
+    data: [400, 370, 330, 390, 320, 350, 360, 320, 380],
+  },
+];
+
+export const barChartOptionsConsumption = {
+  chart: {
+    stacked: true,
+    toolbar: {
+      show: false,
+    },
+  },
+  tooltip: {
+    style: {
+      fontSize: "12px",
+      fontFamily: undefined,
+    },
+    onDatasetHover: {
+      style: {
+        fontSize: "12px",
+        fontFamily: undefined,
+      },
+    },
+    theme: "dark",
+  },
+  xaxis: {
+    categories: ["17", "18", "19", "20", "21", "22", "23", "24", "25"],
+    show: false,
+    labels: {
+      show: true,
+      style: {
+        colors: "#A3AED0",
+        fontSize: "14px",
+        fontWeight: "500",
+      },
+    },
+    axisBorder: {
+      show: false,
+    },
+    axisTicks: {
+      show: false,
+    },
+  },
+  yaxis: {
+    show: false,
+    color: "black",
+    labels: {
+      show: false,
+      style: {
+        colors: "#A3AED0",
+        fontSize: "14px",
+        fontWeight: "500",
+      },
+    },
+  },
+
+  grid: {
+    borderColor: "rgba(163, 174, 208, 0.3)",
+    show: true,
+    yaxis: {
+      lines: {
+        show: false,
+        opacity: 0.5,
+      },
+    },
+    row: {
+      opacity: 0.5,
+    },
+    xaxis: {
+      lines: {
+        show: false,
+      },
+    },
+  },
+  fill: {
+    type: "solid",
+    colors: ["#5E37FF", "#6AD2FF", "#E1E9F8"],
+  },
+  legend: {
+    show: false,
+  },
+  colors: ["#5E37FF", "#6AD2FF", "#E1E9F8"],
+  dataLabels: {
+    enabled: false,
+  },
+  plotOptions: {
+    bar: {
+      borderRadius: 10,
+      columnWidth: "20px",
+    },
+  },
+};
+
+export const pieChartOptions = {
+  labels: ["Your files", "System", "Empty"],
+  colors: ["#4318FF", "#6AD2FF", "#EFF4FB"],
+  chart: {
+    width: "50px",
+  },
+  states: {
+    hover: {
+      filter: {
+        type: "none",
+      },
+    },
+  },
+  legend: {
+    show: false,
+  },
+  dataLabels: {
+    enabled: false,
+  },
+  hover: { mode: null },
+  plotOptions: {
+    donut: {
+      expandOnClick: false,
+      donut: {
+        labels: {
+          show: false,
+        },
+      },
+    },
+  },
+  fill: {
+    colors: ["#4318FF", "#6AD2FF", "#EFF4FB"],
+  },
+  tooltip: {
+    enabled: true,
+    theme: "dark",
+  },
+};
+
+export const pieChartData = [63, 25, 12];
+
+// Total Spent Default
+
+export const lineChartDataTotalSpent = [
+  {
+    name: "Revenue",
+    data: [50, 64, 48, 66, 49, 68],
+  },
+  {
+    name: "Profit",
+    data: [30, 40, 24, 46, 20, 46],
+  },
+];
+
+export const lineChartOptionsTotalSpent = {
+  chart: {
+    toolbar: {
+      show: false,
+    },
+    dropShadow: {
+      enabled: true,
+      top: 13,
+      left: 0,
+      blur: 10,
+      opacity: 0.1,
+      color: "#4318FF",
+    },
+  },
+  colors: ["#4318FF", "#39B8FF"],
+  markers: {
+    size: 0,
+    colors: "white",
+    strokeColors: "#7551FF",
+    strokeWidth: 3,
+    strokeOpacity: 0.9,
+    strokeDashArray: 0,
+    fillOpacity: 1,
+    discrete: [],
+    shape: "circle",
+    radius: 2,
+    offsetX: 0,
+    offsetY: 0,
+    showNullDataPoints: true,
+  },
+  tooltip: {
+    theme: "dark",
+  },
+  dataLabels: {
+    enabled: false,
+  },
+  stroke: {
+    curve: "smooth",
+    type: "line",
+  },
+  xaxis: {
+    type: "numeric",
+    categories: ["SEP", "OCT", "NOV", "DEC", "JAN", "FEB"],
+    labels: {
+      style: {
+        colors: "#A3AED0",
+        fontSize: "12px",
+        fontWeight: "500",
+      },
+    },
+    axisBorder: {
+      show: false,
+    },
+    axisTicks: {
+      show: false,
+    },
+  },
+  yaxis: {
+    show: false,
+  },
+  legend: {
+    show: false,
+  },
+  grid: {
+    show: false,
+    column: {
+      color: ["#7551FF", "#39B8FF"],
+      opacity: 0.5,
+    },
+  },
+  color: ["#7551FF", "#39B8FF"],
+};
+```eof
+
+# =============================================================================
+# FICHEIRO 21: src/views/admin/Agricultores/index.jsx
+# =============================================================================
+```python:index.jsx:src/views/admin/Agricultores/index.jsx
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Box, Flex, Button, Icon, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
+  Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
+  FormControl, FormLabel, Input, useDisclosure, FormErrorMessage, Spinner, useToast,
+  IconButton, Tooltip, InputGroup, InputLeftElement
+} from "@chakra-ui/react";
+import { MdEdit, MdDelete, MdPersonAdd, MdSearch } from "react-icons/md"; 
+import Card from "components/card/Card.js";
+import { Formik, Form, Field } from 'formik';
+import * as Yup from 'yup';
+import { getAgricultores, createAgricultor, updateAgricultor, deleteAgricultor } from "services/agricultorService";
+
+// Validação do Formulário
+const AgricultorSchema = Yup.object().shape({
+  nome: Yup.string().required('Nome é obrigatório'),
+  cpf: Yup.string().required('CPF é obrigatório'),
+  comunidade: Yup.string().required('Comunidade é obrigatória'),
+  contato: Yup.string().required('Contato é obrigatório')
+});
+
+export default function AgricultoresPage() {
+  const [agricultores, setAgricultores] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // --- ESTADO DA BUSCA ---
+  const [busca, setBusca] = useState("");
+
+  const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const [agricultorParaDeletar, setAgricultorParaDeletar] = useState(null);
+  const [agricultorSelecionado, setAgricultorSelecionado] = useState(null);
+  
+  const textColor = useColorModeValue("secondaryGray.900", "white");
+  const toast = useToast();
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await getAgricultores();
+      setAgricultores(response.data);
+    } catch (error) {
+      toast({ title: "Erro ao buscar dados.", status: "error", duration: 5000, isClosable: true });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleOpenForm = (agricultor = null) => {
+    setAgricultorSelecionado(agricultor);
+    onFormOpen();
+  };
+
+  const handleSubmit = async (values, actions) => {
+    try {
+      if (agricultorSelecionado) {
+        await updateAgricultor(agricultorSelecionado.id, values); 
+        toast({ title: "Agricultor atualizado!", status: "success", duration: 5000, isClosable: true });
+      } else {
+        await createAgricultor(values);
+        toast({ title: "Agricultor cadastrado!", status: "success", duration: 5000, isClosable: true });
+      }
+      actions.setSubmitting(false);
+      onFormClose();
+      fetchData();
+    } catch (error) {
+      toast({ title: "Erro na operação.", description: error.message, status: "error", duration: 5000, isClosable: true });
+      actions.setSubmitting(false);
+    }
+  };
+
+  const handleAbrirModalExclusao = (agricultor) => {
+    setAgricultorParaDeletar(agricultor);
+    onDeleteOpen();
+  };
+
+  const handleConfirmarExclusao = async () => {
+    if (!agricultorParaDeletar) return;
+    try {
+      await deleteAgricultor(agricultorParaDeletar.id);
+      toast({ title: 'Sucesso!', description: `Agricultor excluído.`, status: 'success', duration: 3000, isClosable: true });
+      onDeleteClose();
+      fetchData();
+    } catch (error) {
+      toast({ title: 'Erro ao excluir.', description: 'Verifique se ele possui propriedades vinculadas.', status: 'error', duration: 5000, isClosable: true });
+      onDeleteClose();
+    }
+  };
+
+  if (loading) return (<Flex justify='center' align='center' height='50vh'><Spinner size='xl' /></Flex>);
+
+  return (
+    <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
+      <Card>
+        <Flex justify='space-between' align='center' mb='20px'>
+          <Text fontSize='2xl' fontWeight='700' color={textColor}>Lista de Agricultores</Text>
+          <Button leftIcon={<MdPersonAdd />} colorScheme='brand' onClick={() => handleOpenForm()}>Novo Agricultor</Button>
+        </Flex>
+        
+        {/* --- BARRA DE PESQUISA (TURBINADA) --- */}
+        <InputGroup mb="20px">
+            <InputLeftElement pointerEvents='none'>
+                <Icon as={MdSearch} color='gray.300' />
+            </InputLeftElement>
+            <Input 
+                placeholder="Buscar por Nome, CPF ou Comunidade..." 
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                borderRadius="10px"
+            />
+        </InputGroup>
+
+        <Table variant='simple' size='sm'>
+          <Thead>
+            <Tr>
+              <Th>Nome</Th>
+              <Th>CPF</Th>
+              <Th>Comunidade</Th>
+              <Th>Contato</Th>
+              <Th>Ações</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {/* --- FILTRO INTELIGENTE: Busca em vários campos --- */}
+            {agricultores
+                .filter(ag => {
+                    const termo = busca.toLowerCase();
+                    return (
+                        ag.nome.toLowerCase().includes(termo) ||
+                        ag.cpf.includes(termo) || 
+                        ag.comunidade.toLowerCase().includes(termo)
+                    );
+                })
+                .map((ag) => (
+                    <Tr key={ag.id}>
+                      <Td fontWeight="bold">{ag.nome}</Td>
+                      <Td>{ag.cpf}</Td>
+                      <Td>{ag.comunidade}</Td>
+                      <Td>{ag.contato}</Td>
+                      <Td>
+                        <Flex gap="5px">
+                          <Tooltip label="Editar">
+                            <IconButton size='sm' colorScheme='brand' icon={<MdEdit />} onClick={() => handleOpenForm(ag)} />
+                          </Tooltip>
+                          <Tooltip label="Excluir">
+                            <IconButton size='sm' colorScheme='red' icon={<MdDelete />} onClick={() => handleAbrirModalExclusao(ag)} />
+                          </Tooltip>
+                        </Flex>
+                      </Td>
+                    </Tr>
+            ))}
+
+            {/* Mensagem se não achar nada */}
+            {agricultores.length > 0 && agricultores.filter(ag => ag.nome.toLowerCase().includes(busca.toLowerCase()) || ag.cpf.includes(busca)).length === 0 && (
+                <Tr>
+                    <Td colSpan={5} textAlign="center" py="4" color="gray.500">
+                        Nenhum agricultor encontrado para "{busca}".
+                    </Td>
+                </Tr>
+            )}
+          </Tbody>
+        </Table>
+      </Card>
+
+      {/* Formulário (Modal) */}
+      <Formik 
+        initialValues={agricultorSelecionado || { nome: '', cpf: '', comunidade: '', contato: '' }} 
+        validationSchema={AgricultorSchema} 
+        onSubmit={handleSubmit}
+        enableReinitialize
+      >
+        {(props) => (
+          <Modal isOpen={isFormOpen} onClose={onFormClose} size="lg">
+            <ModalOverlay /><ModalContent>
+              <Form>
+                <ModalHeader>{agricultorSelecionado ? "Editar Agricultor" : "Cadastrar Agricultor"}</ModalHeader><ModalCloseButton />
+                <ModalBody>
+                  <Field name='nome'>{({ field, form }) => (<FormControl isInvalid={form.errors.nome && form.touched.nome} mb={4}><FormLabel>Nome Completo</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.nome}</FormErrorMessage></FormControl>)}</Field>
+                  
+                  <Flex gap="4">
+                      <Field name='cpf'>{({ field, form }) => (<FormControl isInvalid={form.errors.cpf && form.touched.cpf} mb={4}><FormLabel>CPF</FormLabel><Input {...field} placeholder="000.000.000-00" /><FormErrorMessage>{form.errors.cpf}</FormErrorMessage></FormControl>)}</Field>
+                      <Field name='contato'>{({ field, form }) => (<FormControl isInvalid={form.errors.contato && form.touched.contato} mb={4}><FormLabel>Contato / Celular</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.contato}</FormErrorMessage></FormControl>)}</Field>
+                  </Flex>
+
+                  <Field name='comunidade'>{({ field, form }) => (<FormControl isInvalid={form.errors.comunidade && form.touched.comunidade} mb={4}><FormLabel>Comunidade / Localidade</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.comunidade}</FormErrorMessage></FormControl>)}</Field>
+                </ModalBody>
+                <ModalFooter>
+                  <Button colorScheme='brand' mr={3} isLoading={props.isSubmitting} type='submit'>Salvar</Button>
+                  <Button variant='ghost' onClick={onFormClose}>Cancelar</Button>
+                </ModalFooter>
+              </Form>
+            </ModalContent>
+          </Modal>
+        )}
+      </Formik>
+
+      {/* Modal Exclusão */}
+      <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
+        <ModalOverlay /><ModalContent>
+          <ModalHeader>Confirmar Exclusão</ModalHeader><ModalCloseButton />
+          <ModalBody>
+            Tem certeza que deseja remover <strong>{agricultorParaDeletar?.nome}</strong>?
+            <Text fontSize="sm" color="red.500" mt={2}>Cuidado: Se ele tiver propriedades cadastradas, a exclusão pode ser bloqueada.</Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onDeleteClose}>Cancelar</Button>
+            <Button colorScheme="red" onClick={handleConfirmarExclusao}>Excluir</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </Box>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 22: src/views/admin/Propriedades/index.jsx
+# =============================================================================
+```python:index.jsx:src/views/admin/Propriedades/index.jsx
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Box, Flex, Button, Icon, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
+  Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
+  FormControl, FormLabel, Input, useDisclosure, FormErrorMessage, Spinner, useToast, Select,
+  IconButton, Tooltip, Divider, InputGroup, InputLeftElement
+} from "@chakra-ui/react";
+// Adicionei MdMap e MdSearch nos ícones
+import { MdEdit, MdDelete, MdAgriculture, MdMap, MdSearch } from "react-icons/md"; 
+import Card from "components/card/Card.js";
+import { Formik, Form, Field } from 'formik';
+import * as Yup from 'yup';
+import { getAgricultores } from "services/agricultorService";
+import { getPropriedades, createPropriedade, updatePropriedade, deletePropriedade } from "services/propriedadeService";
+
+const SignupSchema = Yup.object().shape({
+  // Campos Obrigatórios
+  terreno: Yup.string().required('O nome da propriedade é obrigatório'),
+  tipo_agricultura: Yup.string().required('O tipo de agricultura é obrigatório'),
+  area_total: Yup.number().required('A área total é obrigatória'),
+  area_exploravel: Yup.number().required('A área explorável é obrigatória'),
+  coordenadas_geograficas: Yup.string().required('As coordenadas são obrigatórias'),
+  agricultor_id: Yup.string().required('É preciso selecionar um agricultor'),
+  
+  // Campos Opcionais
+  cultura_principal: Yup.string().nullable(),
+  quantidade_gado: Yup.number().min(0, 'Valor positivo').nullable()
+});
+
+export default function PropriedadesPage() {
+  const [propriedades, setPropriedades] = useState([]);
+  const [agricultores, setAgricultores] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // --- NOVO ESTADO PARA A BUSCA ---
+  const [busca, setBusca] = useState("");
+
+  const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const [propriedadeParaDeletar, setPropriedadeParaDeletar] = useState(null);
+  const [propriedadeSelecionada, setPropriedadeSelecionada] = useState(null);
+  
+  const textColor = useColorModeValue("secondaryGray.900", "white");
+  const borderColor = useColorModeValue("gray.200", "whiteAlpha.100");
+  const toast = useToast();
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [propriedadesResponse, agricultoresResponse] = await Promise.all([
+        getPropriedades(),
+        getAgricultores()
+      ]);
+      setPropriedades(propriedadesResponse.data);
+      setAgricultores(agricultoresResponse.data);
+    } catch (error) {
+      toast({ title: "Erro ao buscar dados.", description: "Verifique a conexão com a API.", status: "error", duration: 5000, isClosable: true });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // --- FUNÇÃO PARA ABRIR O MAPA ---
+  const handleOpenMap = (coords) => {
+    if (!coords) {
+        toast({ title: "Sem coordenadas", status: "warning", duration: 2000 });
+        return;
+    }
+    // Remove espaços em branco para garantir que a URL fique certa
+    const cleanCoords = coords.replace(/\s/g, '');
+    // Abre o Google Maps em nova aba
+    window.open(`https://www.google.com/maps?q=${cleanCoords}`, '_blank');
+  };
+
+  const handleOpenForm = (propriedade = null) => {
+    setPropriedadeSelecionada(propriedade);
+    onFormOpen();
+  };
+
+  const handleSubmit = async (values, actions) => {
+    try {
+      const { agricultor_id, ...dadosPropriedade } = values;
+
+      const payload = {
+          ...dadosPropriedade,
+          quantidade_gado: values.quantidade_gado || 0,
+          cultura_principal: values.cultura_principal || 'Outros'
+      };
+
+      if (propriedadeSelecionada) {
+        await updatePropriedade(propriedadeSelecionada.id, values); 
+        toast({ title: "Propriedade atualizada!", status: "success", duration: 5000, isClosable: true });
+      } else {
+        await createPropriedade(agricultor_id, payload);
+        toast({ title: "Propriedade cadastrada!", status: "success", duration: 5000, isClosable: true });
+      }
+      
+      actions.setSubmitting(false);
+      onFormClose();
+      fetchData();
+    } catch (error) {
+      toast({ title: "Erro na operação.", description: error.message, status: "error", duration: 5000, isClosable: true });
+      actions.setSubmitting(false);
+    }
+  };
+
+  const handleAbrirModalExclusao = (propriedade) => {
+    setPropriedadeParaDeletar(propriedade);
+    onDeleteOpen();
+  };
+
+  const handleConfirmarExclusao = async () => {
+    if (!propriedadeParaDeletar) return;
+    try {
+      await deletePropriedade(propriedadeParaDeletar.id);
+      toast({ title: 'Sucesso!', description: `Propriedade excluída.`, status: 'success', duration: 3000, isClosable: true });
+      onDeleteClose();
+      fetchData();
+    } catch (error) {
+      toast({ title: 'Erro ao excluir.', description: 'Não foi possível remover a propriedade.', status: 'error', duration: 5000, isClosable: true });
+      onDeleteClose();
+    }
+  };
+
+  if (loading) return (<Flex justify='center' align='center' height='50vh'><Spinner size='xl' /></Flex>);
+
+  return (
+    <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
+      <Card>
+        <Flex justify='space-between' align='center' mb='20px'>
+          <Text fontSize='2xl' fontWeight='700' color={textColor}>Lista de Propriedades</Text>
+          <Button colorScheme='brand' onClick={() => handleOpenForm()}>Cadastrar Propriedade</Button>
+        </Flex>
+        
+        {/* --- BARRA DE PESQUISA (NOVA) --- */}
+        <InputGroup mb="20px">
+            <InputLeftElement pointerEvents='none'>
+                <Icon as={MdSearch} color='gray.300' />
+            </InputLeftElement>
+            <Input 
+                placeholder="Buscar por nome da propriedade..." 
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                borderRadius="10px"
+            />
+        </InputGroup>
+
+        <Table variant='simple' size='sm'>
+          <Thead>
+            <Tr>
+              <Th>Propriedade</Th>
+              <Th>Agricultor</Th>
+              <Th>Tipo</Th>
+              <Th>Área Total (ha)</Th>
+              <Th>Área Explorável (ha)</Th>
+              <Th>Coordenadas</Th>
+              <Th>Ações</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {/* --- FILTRAGEM DOS DADOS ANTES DE EXIBIR --- */}
+            {propriedades
+                .filter(p => p.terreno.toLowerCase().includes(busca.toLowerCase()))
+                .map((prop) => {
+                  const agricultor = agricultores.find(a => a.id === prop.agricultor_id);
+                  return (
+                    <Tr key={prop.id}>
+                      <Td fontWeight="bold">{prop.terreno}</Td>
+                      <Td>{agricultor ? agricultor.nome : 'N/A'}</Td>
+                      <Td>{prop.tipo_agricultura}</Td>
+                      <Td>{prop.area_total}</Td>
+                      <Td>{prop.area_exploravel}</Td>
+                      <Td>{prop.coordenadas_geograficas}</Td>
+                      <Td>
+                        <Flex gap="5px">
+                          {/* --- BOTÃO DO GOOGLE MAPS (NOVO) --- */}
+                          <Tooltip label="Ver no Google Maps">
+                            <IconButton 
+                                size='sm' 
+                                colorScheme='blue' 
+                                icon={<MdMap />} 
+                                onClick={() => handleOpenMap(prop.coordenadas_geograficas)} 
+                            />
+                          </Tooltip>
+
+                          <Tooltip label="Editar Propriedade">
+                            <IconButton size='sm' colorScheme='brand' icon={<MdEdit />} onClick={() => handleOpenForm(prop)} />
+                          </Tooltip>
+                          <Tooltip label="Excluir Propriedade">
+                            <IconButton size='sm' colorScheme='red' icon={<MdDelete />} onClick={() => handleAbrirModalExclusao(prop)} />
+                          </Tooltip>
+                        </Flex>
+                      </Td>
+                    </Tr>
+                  );
+            })}
+            
+            {/* Mensagem caso não encontre nada na busca */}
+            {propriedades.filter(p => p.terreno.toLowerCase().includes(busca.toLowerCase())).length === 0 && (
+                <Tr>
+                    <Td colSpan={7} textAlign="center" py="4" color="gray.500">
+                        Nenhuma propriedade encontrada.
+                    </Td>
+                </Tr>
+            )}
+          </Tbody>
+        </Table>
+      </Card>
+
+      <Formik 
+        initialValues={propriedadeSelecionada ? {
+          terreno: propriedadeSelecionada.terreno,
+          tipo_agricultura: propriedadeSelecionada.tipo_agricultura,
+          area_total: propriedadeSelecionada.area_total,
+          area_exploravel: propriedadeSelecionada.area_exploravel,
+          coordenadas_geograficas: propriedadeSelecionada.coordenadas_geograficas,
+          agricultor_id: propriedadeSelecionada.agricultor_id,
+          cultura_principal: propriedadeSelecionada.cultura_principal || '',
+          quantidade_gado: propriedadeSelecionada.quantidade_gado || 0
+        } : { 
+          terreno: '', tipo_agricultura: '', area_total: '', area_exploravel: '', coordenadas_geograficas: '', agricultor_id: '',
+          cultura_principal: '', quantidade_gado: 0
+        }} 
+        validationSchema={SignupSchema} 
+        onSubmit={handleSubmit}
+        enableReinitialize
+      >
+        {(props) => (
+          <Modal isOpen={isFormOpen} onClose={onFormClose} size="xl">
+            <ModalOverlay /><ModalContent>
+              <Form>
+                <ModalHeader>{propriedadeSelecionada ? "Editar Propriedade" : "Cadastrar Nova Propriedade"}</ModalHeader><ModalCloseButton />
+                <ModalBody>
+                  {/* Campos do Formulário (Dados Gerais) */}
+                  <Flex gap="4">
+                    <Field name='terreno'>{({ field, form }) => (<FormControl isInvalid={form.errors.terreno && form.touched.terreno} mb={4}><FormLabel>Nome da Propriedade</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.terreno}</FormErrorMessage></FormControl>)}</Field>
+                    <Field name='agricultor_id'>{({ field, form }) => (
+                      <FormControl isInvalid={form.errors.agricultor_id && form.touched.agricultor_id} mb={4}>
+                        <FormLabel>Agricultor Responsável</FormLabel>
+                        <Select {...field} placeholder="Selecione...">{agricultores.map(ag => (<option key={ag.id} value={ag.id}>{ag.nome}</option>))}</Select>
+                        <FormErrorMessage>{form.errors.agricultor_id}</FormErrorMessage>
+                      </FormControl>
+                    )}</Field>
+                  </Flex>
+
+                  <Flex gap="4">
+                    <Field name='area_total'>{({ field, form }) => (<FormControl isInvalid={form.errors.area_total && form.touched.area_total} mb={4}><FormLabel>Área Total (ha)</FormLabel><Input {...field} type="number" /><FormErrorMessage>{form.errors.area_total}</FormErrorMessage></FormControl>)}</Field>
+                    <Field name='area_exploravel'>{({ field, form }) => (<FormControl isInvalid={form.errors.area_exploravel && form.touched.area_exploravel} mb={4}><FormLabel>Área Explorável (ha)</FormLabel><Input {...field} type="number" /><FormErrorMessage>{form.errors.area_exploravel}</FormErrorMessage></FormControl>)}</Field>
+                  </Flex>
+
+                  <Field name='tipo_agricultura'>{({ field, form }) => (<FormControl isInvalid={form.errors.tipo_agricultura && form.touched.tipo_agricultura} mb={4}><FormLabel>Tipo de Solo / Agricultura</FormLabel><Input {...field} placeholder="Ex: Solo Arenoso, Misto..." /><FormErrorMessage>{form.errors.tipo_agricultura}</FormErrorMessage></FormControl>)}</Field>
+
+                  <Field name='coordenadas_geograficas'>{({ field, form }) => (<FormControl isInvalid={form.errors.coordenadas_geograficas && form.touched.coordenadas_geograficas} mb={4}><FormLabel>Coordenadas Geográficas</FormLabel><Input {...field} placeholder="-7.123, -35.567" /><FormErrorMessage>{form.errors.coordenadas_geograficas}</FormErrorMessage></FormControl>)}</Field>
+
+                  <Divider my="20px" borderColor={borderColor} />
+                  
+                  {/* Dados de Produção */}
+                  <Flex align="center" gap="2" mb="15px">
+                     <Icon as={MdAgriculture} color="brand.500" />
+                     <Text fontSize="sm" fontWeight="bold" color="brand.500">DADOS DE PRODUÇÃO (PARA O DASHBOARD)</Text>
+                  </Flex>
+
+                  <Flex gap="4">
+                    <Field name='cultura_principal'>{({ field, form }) => (
+                        <FormControl isInvalid={form.errors.cultura_principal && form.touched.cultura_principal} mb={4}>
+                            <FormLabel>O que se cultiva aqui?</FormLabel>
+                            <Select {...field} placeholder="Selecione a cultura principal...">
+                                <option value="Milho">Milho</option>
+                                <option value="Feijão">Feijão</option>
+                                <option value="Mandioca">Mandioca</option>
+                                <option value="Algodão">Algodão</option>
+                                <option value="Fruticultura">Fruticultura</option>
+                                <option value="Hortaliças">Hortaliças</option>
+                                <option value="Pasto/Pecuária">Apenas Pasto</option>
+                                <option value="Outros">Outros</option>
+                            </Select>
+                        </FormControl>
+                    )}</Field>
+
+                    <Field name='quantidade_gado'>{({ field, form }) => (
+                        <FormControl isInvalid={form.errors.quantidade_gado && form.touched.quantidade_gado} mb={4}>
+                            <FormLabel>Possui gado? (Qtd.)</FormLabel>
+                            <Input {...field} type="number" placeholder="0 se não tiver" />
+                        </FormControl>
+                    )}</Field>
+                  </Flex>
+
+                </ModalBody>
+                <ModalFooter>
+                  <Button colorScheme='brand' mr={3} isLoading={props.isSubmitting} type='submit'>Salvar</Button>
+                  <Button variant='ghost' onClick={onFormClose}>Cancelar</Button>
+                </ModalFooter>
+              </Form>
+            </ModalContent>
+          </Modal>
+        )}
+      </Formik>
+
+      <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
+        <ModalOverlay /><ModalContent>
+          <ModalHeader>Confirmar Exclusão</ModalHeader><ModalCloseButton />
+          <ModalBody>Você tem certeza que deseja excluir a propriedade <strong>{propriedadeParaDeletar?.terreno}</strong>?</ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onDeleteClose}>Cancelar</Button>
+            <Button colorScheme="red" onClick={handleConfirmarExclusao}>Excluir</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </Box>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 23: src/views/admin/Servicos/index.jsx
+# =============================================================================
+```python:index.jsx:src/views/admin/Servicos/index.jsx
+import React, { useEffect, useState, useRef } from "react";
+import {
+  Box,
+  Button,
+  Flex,
+  Text,
+  useColorModeValue,
+  SimpleGrid,
+  Icon,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  Input,
+  Textarea,
+  Select,
+  useDisclosure,
+  useToast,
+  IconButton,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  Tooltip 
+} from "@chakra-ui/react";
+import { MdAdd, MdBuild, MdEdit, MdDelete, MdDirectionsCar } from "react-icons/md";
+import Card from "components/card/Card";
+import api from "services/api";
+
+export default function Servicos() {
+  const textColor = useColorModeValue("secondaryGray.900", "white");
+  const iconColor = useColorModeValue("brand.500", "white");
+
+  const [servicos, setServicos] = useState([]);
+  
+  // Estados do Modal
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  
+  // Estados do Alerta de Exclusão
+  const { 
+    isOpen: isDeleteOpen, 
+    onOpen: onDeleteOpen, 
+    onClose: onDeleteClose 
+  } = useDisclosure();
+  const cancelRef = useRef();
+
+  const toast = useToast();
+
+  // Estados do Formulário
+  const [idServico, setIdServico] = useState(null);
+  const [nomeServico, setNomeServico] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [tipoVeiculo, setTipoVeiculo] = useState(""); 
+
+  useEffect(() => {
+    carregarServicos();
+  }, []);
+
+  const carregarServicos = async () => {
+    try {
+      const response = await api.get("/servicos");
+      setServicos(response.data);
+    } catch (error) {
+      console.error("Erro ao buscar serviços", error);
+    }
+  };
+
+  const handleNovo = () => {
+    setIdServico(null);
+    setNomeServico("");
+    setDescricao("");
+    setTipoVeiculo(""); 
+    onOpen();
+  };
+
+  const handleEditar = (servico) => {
+    setIdServico(servico.id);
+    setNomeServico(servico.nome_servico);
+    setDescricao(servico.descricao || "");
+    setTipoVeiculo(servico.tipo_veiculo || ""); 
+    onOpen();
+  };
+
+  const handleExcluirConfirmacao = (servico) => {
+    setIdServico(servico.id);
+    onDeleteOpen();
+  };
+
+  const handleSalvar = async () => {
+    if (!nomeServico) {
+      toast({ title: "Nome do serviço obrigatório", status: "warning", duration: 3000, isClosable: true });
+      return;
+    }
+
+    const dados = { 
+        nome_servico: nomeServico, 
+        descricao,
+        tipo_veiculo: tipoVeiculo || null 
+    };
+
+    try {
+      if (idServico) {
+        await api.put(`/servicos/${idServico}`, dados);
+        toast({ title: "Serviço atualizado!", status: "success", duration: 3000, isClosable: true });
+      } else {
+        await api.post("/servicos", dados);
+        toast({ title: "Serviço cadastrado!", status: "success", duration: 3000, isClosable: true });
+      }
+      onClose();
+      carregarServicos();
+    } catch (error) {
+      toast({ title: "Erro ao salvar", description: "Erro no backend.", status: "error", duration: 3000, isClosable: true });
+    }
+  };
+
+  const handleExcluir = async () => {
+    try {
+      await api.delete(`/servicos/${idServico}`);
+      toast({ title: "Serviço excluído!", status: "info", duration: 3000, isClosable: true });
+      onDeleteClose();
+      carregarServicos();
+    } catch (error) {
+      toast({ title: "Erro ao excluir", description: "O serviço pode estar em uso.", status: "error", duration: 3000, isClosable: true });
+    }
+  };
+
+  return (
+    <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
+      <Flex justifyContent="space-between" mb="20px" align="center">
+        <Text color={textColor} fontSize="2xl" fontWeight="700">
+          Catálogo de Serviços
+        </Text>
+        <Button leftIcon={<MdAdd />} colorScheme="brand" variant="solid" onClick={handleNovo}>
+          Novo Serviço
+        </Button>
+      </Flex>
+
+      <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap="20px">
+        {servicos.map((servico) => (
+          <Card key={servico.id} p="20px">
+            <Flex justify="space-between" align="start" mb="20px">
+              <Flex align="center">
+                <Box bg={iconColor} p="10px" borderRadius="50%" color="white" mr="15px">
+                  <Icon as={MdBuild} w="24px" h="24px" />
+                </Box>
+                <Box>
+                  <Text fontWeight="bold" fontSize="lg">{servico.nome_servico}</Text>
+                  
+                  {servico.tipo_veiculo ? (
+                      <Flex align="center" mt="5px">
+                        <Icon as={MdDirectionsCar} color="gray.500" w="14px" h="14px" mr="5px"/>
+                        <Text fontSize="xs" color="gray.500" fontWeight="600">
+                            Requer: {servico.tipo_veiculo}
+                        </Text>
+                      </Flex>
+                  ) : (
+                      <Text fontSize="xs" color="gray.400" mt="5px">Não requer maquinário</Text>
+                  )}
+                  
+                </Box>
+              </Flex>
+              
+              {/* --- BOTÕES DE AÇÃO PADRONIZADOS --- */}
+              <Flex align="center" gap="5px">
+                <Tooltip label="Editar Serviço">
+                    <IconButton
+                        size="sm"
+                        colorScheme="brand"
+                        icon={<MdEdit />}
+                        onClick={() => handleEditar(servico)}
+                    />
+                </Tooltip>
+                <Tooltip label="Excluir Serviço">
+                    <IconButton
+                        size="sm"
+                        colorScheme="red"
+                        icon={<MdDelete />}
+                        onClick={() => handleExcluirConfirmacao(servico)}
+                    />
+                </Tooltip>
+              </Flex>
+            </Flex>
+
+            <Text color="gray.500" fontSize="sm" noOfLines={2}>
+              {servico.descricao || "Sem descrição definida."}
+            </Text>
+          </Card>
+        ))}
+
+        {servicos.length === 0 && (
+            <Text color="gray.500" mt="20px">Nenhum serviço cadastrado.</Text>
+        )}
+      </SimpleGrid>
+
+      {/* --- MODAL DE CADASTRO / EDIÇÃO --- */}
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>{idServico ? "Editar Serviço" : "Novo Serviço"}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <FormControl mb="15px">
+              <FormLabel>Nome do Serviço</FormLabel>
+              <Input 
+                placeholder="Ex: Corte de Terra" 
+                value={nomeServico}
+                onChange={(e) => setNomeServico(e.target.value)}
+              />
+            </FormControl>
+
+            <FormControl mb="15px">
+              <FormLabel>Veículo Necessário (Opcional)</FormLabel>
+              <Select 
+                placeholder="Selecione se precisar de máquina..." 
+                value={tipoVeiculo} 
+                onChange={(e) => setTipoVeiculo(e.target.value)}
+              >
+                <option value="">Nenhum (Apenas mão de obra)</option>
+                <option value="Trator">Trator</option>
+                <option value="Caminhão">Caminhão</option>
+                <option value="Retroescavadeira">Retroescavadeira</option>
+                <option value="Motoniveladora">Motoniveladora</option>
+                <option value="Pá Mecânica">Pá Mecânica</option>
+                {/* REMOVIDO: Opção "Arado" - Arado é implemento, não veículo */}
+              </Select>
+              <Text fontSize="xs" color="gray.400" mt="5px">
+                Isso ajuda a filtrar a frota disponível na hora da solicitação.
+              </Text>
+            </FormControl>
+
+            <FormControl mb="15px">
+              <FormLabel>Descrição</FormLabel>
+              <Textarea 
+                placeholder="Detalhes sobre como o serviço é realizado..." 
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+              />
+            </FormControl>
+          </ModalBody>
+
+          <ModalFooter>
+            <Button colorScheme="red" variant="ghost" mr={3} onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button colorScheme="brand" onClick={handleSalvar}>
+              {idServico ? "Atualizar" : "Salvar"}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* --- ALERTA DE EXCLUSÃO --- */}
+      <AlertDialog isOpen={isDeleteOpen} leastDestructiveRef={cancelRef} onClose={onDeleteClose}>
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">Excluir Serviço</AlertDialogHeader>
+            <AlertDialogBody>Tem certeza? Isso pode afetar solicitações antigas.</AlertDialogBody>
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onDeleteClose}>Cancelar</Button>
+              <Button colorScheme="red" onClick={handleExcluir} ml={3}>Excluir</Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
+    </Box>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 24: src/views/admin/Solicitacoes/index.jsx
+# =============================================================================
+```python:index.jsx:src/views/admin/Solicitacoes/index.jsx
+import React, { useState, useEffect } from "react";
+import {
+  Box, Flex, Button, Text, useColorModeValue, SimpleGrid,
+  Icon, Badge, useDisclosure, Modal, ModalOverlay, ModalContent,
+  ModalHeader, ModalCloseButton, ModalBody, ModalFooter,
+  FormControl, FormLabel, Select, Textarea, Input, useToast, Spinner
+} from "@chakra-ui/react";
+import { MdAdd, MdEdit, MdPrint, MdLocalShipping, MdEvent } from "react-icons/md";
+import Card from "components/card/Card.js";
+import { Formik, Form, Field } from 'formik';
+import * as Yup from 'yup';
+import api from "services/api"; 
+import { format } from 'date-fns';
+
+// Esquema de Validação
+const SolicitacaoSchema = Yup.object().shape({
+  status: Yup.string().required('Status é obrigatório'),
+  veiculo_id: Yup.number().nullable(),
+  observacoes: Yup.string().nullable()
+});
+
+export default function SolicitacoesPage() {
+  // Estados
+  const [solicitacoes, setSolicitacoes] = useState([]);
+  const [servicos, setServicos] = useState([]);
+  const [veiculos, setVeiculos] = useState([]);
+  const [propriedades, setPropriedades] = useState([]); 
+  const [loading, setLoading] = useState(true);
+  
+  // Controle do Modal
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState(null);
+
+  const textColor = useColorModeValue("secondaryGray.900", "white");
+  const toast = useToast();
+
+  // Função de Busca Geral
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      // Busca tudo em paralelo
+      const [reqSol, reqServ, reqVeic, reqProp] = await Promise.all([
+        api.get('/solicitacoes'),
+        api.get('/servicos'),
+        api.get('/veiculos'),
+        api.get('/propriedades')
+      ]);
+
+      setSolicitacoes(reqSol.data || []);
+      setServicos(reqServ.data || []);
+      setVeiculos(reqVeic.data || []);
+      setPropriedades(reqProp.data || []);
+
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+      toast({ title: "Erro de conexão", description: "Não foi possível carregar os dados.", status: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Abrir Modal
+  const handleGerenciar = (solicitacao) => {
+    setSolicitacaoSelecionada(solicitacao);
+    onOpen();
+  };
+
+  // Salvar Alterações
+  const handleSubmit = async (values, actions) => {
+    try {
+      await api.put(`/solicitacoes/${solicitacaoSelecionada.id}`, values);
+      toast({ title: "Solicitação atualizada!", status: "success", duration: 3000, isClosable: true });
+      fetchData(); 
+      onClose();
+    } catch (error) {
+      toast({ title: "Erro ao atualizar.", status: "error", duration: 3000, isClosable: true });
+    } finally {
+      actions.setSubmitting(false);
+    }
+  };
+
+  // Cores dos Status
+  const getStatusColor = (status) => {
+    const s = status ? status.toUpperCase() : '';
+    if (s === 'APROVADA' || s === 'EM ANDAMENTO') return 'blue';
+    if (s === 'CONCLUÍDA') return 'green';
+    if (s === 'RECUSADA') return 'red';
+    return 'yellow'; // Pendente
+  };
+
+  if (loading) return <Flex justify='center' mt='100px'><Spinner size='xl' /></Flex>;
+
+  return (
+    <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
+      
+      {/* Cabeçalho */}
+      <Flex justify='space-between' align='center' mb='20px'>
+        <Text fontSize='2xl' fontWeight='700' color={textColor}>Central de Solicitações</Text>
+        <Button leftIcon={<MdAdd />} colorScheme='brand' variant='solid'>Nova Demanda</Button>
+      </Flex>
+
+      {/* Grid de Cards */}
+      <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap='20px'>
+        {solicitacoes.map((sol) => (
+          <Card key={sol.id} p='20px'>
+            <Flex justify='space-between' mb='10px'>
+              <Badge colorScheme={getStatusColor(sol.status)} borderRadius='8px' px='10px' py='5px'>
+                {sol.status}
+              </Badge>
+              <Text fontSize='xs' color='gray.400'>#{sol.id}</Text>
+            </Flex>
+
+            {/* Título do Serviço */}
+            <Flex align='center' mb='10px'>
+               <Icon as={MdEvent} color='brand.500' w='20px' h='20px' mr='10px' />
+               <Text fontWeight='bold' fontSize='lg'>
+                 {sol.servico?.nome_servico || "Serviço N/A"}
+               </Text>
+            </Flex>
+
+            {/* Detalhes */}
+            <Box mb='20px'>
+               <Text fontSize='sm' color='gray.500'>
+                 <Text as='span' fontWeight='bold'>Agricultor: </Text> {sol.agricultor?.nome}
+               </Text>
+               <Text fontSize='sm' color='gray.500'>
+                 <Text as='span' fontWeight='bold'>Local: </Text> {sol.propriedade?.terreno}
+               </Text>
+               <Text fontSize='sm' color='gray.500'>
+                 <Text as='span' fontWeight='bold'>Data: </Text> 
+                 {sol.data_solicitacao ? format(new Date(sol.data_solicitacao), 'dd/MM/yyyy') : '-'}
+               </Text>
+               
+               {/* Veículo alocado */}
+               {sol.veiculo && (
+                 <Flex mt='2' align='center' color='blue.500'>
+                    <Icon as={MdLocalShipping} mr='1' />
+                    <Text fontSize='sm' fontWeight='bold'>{sol.veiculo.nome}</Text>
+                 </Flex>
+               )}
+            </Box>
+
+            {/* Ações */}
+            <Flex justify='space-between' mt='auto'>
+               <Button leftIcon={<MdPrint />} size='sm' variant='ghost'>Imprimir</Button>
+               <Button 
+                 leftIcon={<MdEdit />} 
+                 size='sm' 
+                 colorScheme='brand' 
+                 variant='outline'
+                 onClick={() => handleGerenciar(sol)}
+               >
+                 Gerenciar
+               </Button>
+            </Flex>
+          </Card>
+        ))}
+      </SimpleGrid>
+
+      {/* MODAL GERENCIAR DEMANDA */}
+      <Modal isOpen={isOpen} onClose={onClose} size='lg'>
+        <ModalOverlay />
+        <ModalContent>
+            <ModalHeader>Gerenciar Demanda #{solicitacaoSelecionada?.id}</ModalHeader>
+            <ModalCloseButton />
+            
+            <Formik
+                // A CHAVE (KEY) FORÇA O FORMULÁRIO A REINICIAR QUANDO TROCA DE SOLICITAÇÃO
+                key={solicitacaoSelecionada ? solicitacaoSelecionada.id : 'empty'}
+                
+                initialValues={{
+                    status: solicitacaoSelecionada?.status || 'PENDENTE',
+                    // Garante que pega o ID dentro do objeto
+                    propriedade_id: solicitacaoSelecionada?.propriedade?.id || '',
+                    servico_id: solicitacaoSelecionada?.servico?.id || '',
+                    veiculo_id: solicitacaoSelecionada?.veiculo?.id || '',
+                    observacoes: solicitacaoSelecionada?.observacoes || ''
+                }}
+                validationSchema={SolicitacaoSchema}
+                onSubmit={handleSubmit}
+                enableReinitialize={true} 
+            >
+                {(props) => (
+                    <Form>
+                        <ModalBody>
+                            <Flex gap='4'>
+                                <FormControl mb={4}>
+                                    <FormLabel>Data</FormLabel>
+                                    <Input 
+                                      value={solicitacaoSelecionada?.data_solicitacao ? format(new Date(solicitacaoSelecionada.data_solicitacao), 'dd/MM/yyyy') : ''} 
+                                      isReadOnly 
+                                      bg='gray.100' 
+                                    />
+                                </FormControl>
+                                <Field name='status'>
+                                    {({ field }) => (
+                                        <FormControl mb={4}>
+                                            <FormLabel>Status</FormLabel>
+                                            <Select {...field}>
+                                                <option value="PENDENTE">PENDENTE</option>
+                                                <option value="APROVADA">APROVADA</option>
+                                                <option value="EM ANDAMENTO">EM ANDAMENTO</option>
+                                                <option value="CONCLUÍDA">CONCLUÍDA</option>
+                                                <option value="RECUSADA">RECUSADA</option>
+                                            </Select>
+                                        </FormControl>
+                                    )}
+                                </Field>
+                            </Flex>
+
+                            {/* SELECT DE PROPRIEDADE (Só leitura para não alterar o local do pedido) */}
+                            <Field name='propriedade_id'>
+                                {({ field }) => (
+                                    <FormControl mb={4}>
+                                        <FormLabel>Propriedade (Local)</FormLabel>
+                                        <Select {...field} disabled bg='gray.50'>
+                                            {/* Se a lista estiver vazia, cria uma opção "fantasma" só para exibir o valor atual */}
+                                            {propriedades.length === 0 && solicitacaoSelecionada?.propriedade && (
+                                                <option value={solicitacaoSelecionada.propriedade.id}>
+                                                    {solicitacaoSelecionada.propriedade.terreno}
+                                                </option>
+                                            )}
+                                            
+                                            {propriedades.map(p => (
+                                                <option key={p.id} value={p.id}>{p.terreno}</option>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                )}
+                            </Field>
+
+                            {/* SELECT DE SERVIÇO */}
+                            <Field name='servico_id'>
+                                {({ field }) => (
+                                    <FormControl mb={4}>
+                                        <FormLabel>Serviço Solicitado</FormLabel>
+                                        <Select {...field} disabled bg='gray.50'>
+                                             {servicos.length === 0 && solicitacaoSelecionada?.servico && (
+                                                <option value={solicitacaoSelecionada.servico.id}>
+                                                    {solicitacaoSelecionada.servico.nome_servico}
+                                                </option>
+                                            )}
+                                            
+                                            {servicos.map(s => (
+                                                <option key={s.id} value={s.id}>{s.nome_servico}</option>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                )}
+                            </Field>
+
+                            {/* ALOCAR MÁQUINA */}
+                            <Field name='veiculo_id'>
+                                {({ field, form }) => (
+                                    <FormControl mb={4} isInvalid={form.errors.veiculo_id && form.touched.veiculo_id}>
+                                        <FormLabel color='brand.500' fontWeight='bold'>Alocar Máquina</FormLabel>
+                                        <Select {...field} placeholder="Selecione a máquina...">
+                                            {veiculos.map(v => (
+                                                <option key={v.id} value={v.id}>
+                                                    {v.nome} ({v.status})
+                                                </option>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                )}
+                            </Field>
+
+                            <Field name='observacoes'>
+                                {({ field }) => (
+                                    <FormControl mb={4}>
+                                        <FormLabel>Observações</FormLabel>
+                                        <Textarea {...field} placeholder="Detalhes da execução..." />
+                                    </FormControl>
+                                )}
+                            </Field>
+
+                        </ModalBody>
+                        <ModalFooter>
+                            <Button variant='ghost' mr={3} onClick={onClose}>Cancelar</Button>
+                            <Button colorScheme='brand' type='submit' isLoading={props.isSubmitting}>Salvar</Button>
+                        </ModalFooter>
+                    </Form>
+                )}
+            </Formik>
+        </ModalContent>
+      </Modal>
+    </Box>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 25: src/views/admin/Usuarios/index.jsx
+# =============================================================================
+```python:index.jsx:src/views/admin/Usuarios/index.jsx
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Box, Flex, Button, Icon, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
+  Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
+  FormControl, FormLabel, Input, useDisclosure, FormErrorMessage, Spinner, useToast, Select
+} from "@chakra-ui/react";
+import { MdEdit, MdDelete } from "react-icons/md";
+import Card from "components/card/Card.js";
+import { Formik, Form, Field } from 'formik';
+import * as Yup from 'yup';
+
+
+import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from "services/usuarioService";
+
+
+const SignupSchema = Yup.object().shape({
+  nome: Yup.string().required('O nome é obrigatório'),
+  login: Yup.string().required('O login é obrigatório'),
+  perfil: Yup.string().required('O perfil é obrigatório'),
+});
+
+export default function UsuariosPage() {
+  const [usuarios, setUsuarios] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const [usuarioParaDeletar, setUsuarioParaDeletar] = useState(null);
+  const [usuarioSelecionado, setUsuarioSelecionado] = useState(null);
+  const textColor = useColorModeValue("secondaryGray.900", "white");
+  const toast = useToast();
+
+  const fetchUsuarios = useCallback(() => {
+    setLoading(true);
+    getUsuarios()
+      .then(response => { setUsuarios(response.data); })
+      .catch(error => { toast({ title: "Erro ao buscar usuários.", status: "error", duration: 5000, isClosable: true }); })
+      .finally(() => { setLoading(false); });
+  }, [toast]);
+
+  useEffect(() => { fetchUsuarios(); }, [fetchUsuarios]);
+
+  const handleOpenForm = (usuario = null) => {
+    setUsuarioSelecionado(usuario);
+    onFormOpen();
+  };
+
+  const handleSubmit = (values, actions) => {
+    if (usuarioSelecionado) {
+      // LÓGICA DE ATUALIZAÇÃO
+      updateUsuario(usuarioSelecionado.id, values)
+        .then(response => {
+          toast({ title: "Usuário atualizado com sucesso!", status: "success", duration: 5000, isClosable: true });
+          onFormClose();
+          fetchUsuarios();
+        })
+        .catch(error => { toast({ title: "Erro ao atualizar usuário.", status: "error", duration: 5000, isClosable: true }); })
+        .finally(() => { actions.setSubmitting(false); });
+    } else {
+      
+      createUsuario(values)
+        .then(response => {
+          toast({ title: "Usuário cadastrado com sucesso!", status: "success", duration: 5000, isClosable: true });
+          onFormClose();
+          fetchUsuarios();
+        })
+        .catch(error => { toast({ title: "Erro ao cadastrar usuário.", status: "error", duration: 5000, isClosable: true }); })
+        .finally(() => { actions.setSubmitting(false); });
+    }
+  };
+
+  const handleAbrirModalExclusao = (usuario) => {
+    setUsuarioParaDeletar(usuario);
+    onDeleteOpen();
+  };
+
+  const handleConfirmarExclusao = () => {
+    if (!usuarioParaDeletar) return;
+    deleteUsuario(usuarioParaDeletar.id)
+      .then(() => {
+        toast({ title: "Usuário excluído com sucesso!", status: "success", duration: 5000, isClosable: true });
+        onDeleteClose();
+        fetchUsuarios();
+      })
+      .catch(error => { toast({ title: "Erro ao excluir usuário.", status: "error", duration: 5000, isClosable: true }); })
+      .finally(() => { onDeleteClose(); }); 
+};
+
+  if (loading) return (<Flex justify='center' align='center' height='50vh'><Spinner size='xl' /></Flex>);
+
+  return (
+    <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
+      <Card>
+        <Flex justify='space-between' align='center' mb='20px'>
+          <Text fontSize='2xl' fontWeight='700' color={textColor}>Lista de Usuários</Text>
+          <Button colorScheme='brand' onClick={() => handleOpenForm()}>Cadastrar Usuário</Button>
+        </Flex>
+        <Table variant='simple' size='sm'>
+          <Thead><Tr><Th>Nome</Th><Th>Login</Th><Th>Perfil</Th><Th>Ações</Th></Tr></Thead>
+          <Tbody>
+            {usuarios.map((user) => (
+              <Tr key={user.id}>
+                <Td>{user.nome}</Td>
+                <Td>{user.login}</Td>
+                <Td>{user.perfil}</Td>
+                <Td>
+                  <Button size='sm' mr='10px' onClick={() => handleOpenForm(user)}><Icon as={MdEdit} /></Button>
+                  <Button size='sm' colorScheme='red' onClick={() => handleAbrirModalExclusao(user)}><Icon as={MdDelete} /></Button>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </Card>
+
+      {/* Modal de Cadastro/Edição */}
+      <Formik
+        initialValues={usuarioSelecionado || { nome: '', login: '', perfil: '' }}
+        validationSchema={SignupSchema}
+        onSubmit={handleSubmit}
+        enableReinitialize
+      >
+        {(props) => (
+          <Modal isOpen={isFormOpen} onClose={onFormClose}><ModalOverlay /><ModalContent>
+            <Form>
+              <ModalHeader>{usuarioSelecionado ? 'Editar Usuário' : 'Cadastrar Novo Usuário'}</ModalHeader><ModalCloseButton />
+              <ModalBody>
+                <Field name='nome'>{({ field, form }) => (<FormControl isInvalid={form.errors.nome && form.touched.nome}><FormLabel>Nome Completo</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.nome}</FormErrorMessage></FormControl>)}</Field>
+                <Field name='login'>{({ field, form }) => (<FormControl mt={4} isInvalid={form.errors.login && form.touched.login}><FormLabel>Login</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.login}</FormErrorMessage></FormControl>)}</Field>
+                <Field name='perfil'>{({ field, form }) => (<FormControl mt={4} isInvalid={form.errors.perfil && form.touched.perfil}><FormLabel>Perfil</FormLabel><Select {...field} placeholder="Selecione o perfil"><option value="tecnico">Técnico</option><option value="gestor">Gestor</option></Select><FormErrorMessage>{form.errors.perfil}</FormErrorMessage></FormControl>)}</Field>
+              </ModalBody>
+              <ModalFooter>
+                <Button colorScheme='brand' mr={3} isLoading={props.isSubmitting} type='submit'>Salvar</Button>
+                <Button variant='ghost' onClick={onFormClose}>Cancelar</Button>
+              </ModalFooter>
+            </Form>
+          </ModalContent></Modal>
+        )}
+      </Formik>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Confirmar Exclusão</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            Você tem certeza que deseja excluir o usuário <strong>{usuarioParaDeletar?.nome}</strong>?
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onDeleteClose}>Cancelar</Button>
+            <Button colorScheme="red" onClick={handleConfirmarExclusao}>Excluir</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </Box>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 26: src/views/admin/Veiculos/index.jsx
+# =============================================================================
+```python:index.jsx:src/views/admin/Veiculos/index.jsx
+import React, { useState, useEffect } from "react";
+import {
+  Box, Flex, Button, Table, Thead, Tbody, Tr, Th, Td, Text, 
+  useColorModeValue, Badge, Spinner, useDisclosure, Modal, 
+  ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, 
+  ModalBody, ModalFooter, FormControl, FormLabel, Input, Select, 
+  IconButton, Tooltip, useToast
+} from "@chakra-ui/react";
+import { MdDirectionsCar, MdEdit, MdDelete } from "react-icons/md";
+import Card from "components/card/Card.js";
+import { Formik, Form, Field } from 'formik';
+import * as Yup from 'yup';
+import api from "services/api"; 
+
+// Validação
+const VeiculoSchema = Yup.object().shape({
+  nome: Yup.string().required('Nome/Modelo é obrigatório'),
+  tipo: Yup.string().required('Tipo é obrigatório'),
+  placa: Yup.string().nullable()
+});
+
+export default function VeiculosPage() {
+  const [veiculos, setVeiculos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const textColor = useColorModeValue("secondaryGray.900", "white");
+  const toast = useToast();
+
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [veiculoSelecionado, setVeiculoSelecionado] = useState(null);
+
+  // Busca dados
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/veiculos');
+      setVeiculos(response.data);
+    } catch (error) {
+      console.log("Erro ao buscar veículos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleOpenModal = (veiculo = null) => {
+    setVeiculoSelecionado(veiculo);
+    onOpen();
+  };
+
+  const handleSubmit = async (values, actions) => {
+    try {
+        if (veiculoSelecionado) {
+            // Editar
+            await api.put(`/veiculos/${veiculoSelecionado.id}`, values);
+            toast({ title: "Veículo atualizado!", status: "success", duration: 3000, isClosable: true });
+        } else {
+            // Criar
+            await api.post('/veiculos', values);
+            toast({ title: "Veículo cadastrado!", status: "success", duration: 3000, isClosable: true });
+        }
+        fetchData();
+        onClose();
+    } catch (error) {
+        toast({ title: "Erro ao salvar.", status: "error", duration: 3000, isClosable: true });
+    } finally {
+        actions.setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+      if (window.confirm("Tem certeza que deseja excluir este veículo?")) {
+          try {
+              await api.delete(`/veiculos/${id}`);
+              toast({ title: "Veículo excluído.", status: "success", duration: 3000, isClosable: true });
+              fetchData();
+          } catch (error) {
+              toast({ title: "Erro ao excluir.", description: "Verifique se está em uso.", status: "error" });
+          }
+      }
+  };
+
+  if (loading) return <Flex justify='center' mt='100px'><Spinner /></Flex>;
+
+  return (
+    <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
+      <Card>
+        <Flex justify='space-between' align='center' mb='20px'>
+          <Text fontSize='2xl' fontWeight='700' color={textColor}>Frota Municipal</Text>
+          <Button leftIcon={<MdDirectionsCar />} colorScheme='brand' onClick={() => handleOpenModal()}>Novo Veículo</Button>
+        </Flex>
+
+        <Table variant='simple'>
+          <Thead>
+            <Tr>
+              <Th>Veículo / Modelo</Th>
+              <Th>Placa</Th>
+              <Th>Tipo</Th>
+              <Th>Status</Th>
+              <Th>Ações</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {veiculos.map((veiculo) => (
+              <Tr key={veiculo.id}>
+                <Td fontWeight='bold'>{veiculo.nome}</Td>
+                <Td>{veiculo.placa || '-'}</Td>
+                <Td>{veiculo.tipo}</Td>
+                <Td>
+                  <Badge colorScheme={veiculo.status === 'DISPONIVEL' ? 'green' : 'red'}>
+                    {veiculo.status}
+                  </Badge>
+                </Td>
+                <Td>
+                    <Flex gap='2'>
+                        <Tooltip label='Editar'><IconButton icon={<MdEdit />} size='sm' onClick={() => handleOpenModal(veiculo)} /></Tooltip>
+                        <Tooltip label='Excluir'><IconButton icon={<MdDelete />} size='sm' colorScheme='red' onClick={() => handleDelete(veiculo.id)} /></Tooltip>
+                    </Flex>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </Card>
+
+      {/* MODAL DE CADASTRO/EDIÇÃO */}
+      <Modal isOpen={isOpen} onClose={onClose} size='lg'>
+        <ModalOverlay />
+        <ModalContent>
+            <ModalHeader>{veiculoSelecionado ? "Editar Veículo" : "Novo Veículo"}</ModalHeader>
+            <ModalCloseButton />
+            <Formik
+                initialValues={veiculoSelecionado || { nome: '', placa: '', tipo: '', status: 'DISPONIVEL' }}
+                validationSchema={VeiculoSchema}
+                onSubmit={handleSubmit}
+            >
+                {(props) => (
+                    <Form>
+                        <ModalBody>
+                            <Field name='nome'>
+                                {({ field, form }) => (
+                                    <FormControl isInvalid={form.errors.nome && form.touched.nome} mb={4}>
+                                        <FormLabel>Modelo / Nome</FormLabel>
+                                        <Input {...field} placeholder="Ex: Trator Valtra A950" />
+                                    </FormControl>
+                                )}
+                            </Field>
+                            <Field name='placa'>
+                                {({ field, form }) => (
+                                    <FormControl isInvalid={form.errors.placa && form.touched.placa} mb={4}>
+                                        <FormLabel>Placa (Opcional)</FormLabel>
+                                        <Input {...field} placeholder="XYZ-1234" />
+                                    </FormControl>
+                                )}
+                            </Field>
+                            <Field name='tipo'>
+                                {({ field, form }) => (
+                                    <FormControl isInvalid={form.errors.tipo && form.touched.tipo} mb={4}>
+                                        <FormLabel>Tipo</FormLabel>
+                                        <Select {...field} placeholder="Selecione o tipo...">
+                                            {/* AQUI ESTÃO AS OPÇÕES EXPANDIDAS */}
+                                            <option value="Trator">Trator</option>
+                                            <option value="Retroescavadeira">Retroescavadeira</option>
+                                            <option value="Motoniveladora">Motoniveladora (Patrol)</option>
+                                            <option value="Caminhão">Caminhão / Caçamba</option>
+                                            <option value="Pá Carregadeira">Pá Carregadeira</option>
+                                            <option value="Escavadeira Hidráulica">Escavadeira Hidráulica</option>
+                                            <option value="Pulverizador">Pulverizador</option>
+                                            <option value="Grade Aradora">Trator com Grade</option>
+                                            <option value="Semeadeira">Semeadeira</option>
+                                        </Select>
+                                    </FormControl>
+                                )}
+                            </Field>
+                        </ModalBody>
+                        <ModalFooter>
+                            <Button variant='ghost' mr={3} onClick={onClose}>Cancelar</Button>
+                            <Button colorScheme='brand' type='submit' isLoading={props.isSubmitting}>Salvar</Button>
+                        </ModalFooter>
+                    </Form>
+                )}
+            </Formik>
+        </ModalContent>
+      </Modal>
+    </Box>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 27: src/views/admin/dashboard/index.jsx
+# =============================================================================
+```python:index.jsx:src/views/admin/dashboard/index.jsx
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  SimpleGrid,
+  Text,
+  useColorModeValue,
+  Flex,
+  Icon,
+  Spinner
+} from "@chakra-ui/react";
+
+// Ícones
+import {
+  MdBarChart,
+  MdAgriculture, 
+  MdAssignment,  
+  MdTerrain,     
+  MdAccessTime,  
+  MdCheckCircle
+} from "react-icons/md";
+
+// Componentes Visuais
+import IconBox from "components/icons/IconBox";
+import Card from "components/card/Card";
+import ReactApexChart from "react-apexcharts";
+
+// Serviços
+import { getDashboardResumo, getDashboardGraficos } from "services/dashboardService";
+
+// --- COMPONENTE MINI STATISTICS (Interno) ---
+const MiniStatistics = ({ startContent, name, value }) => {
+  const textColor = useColorModeValue("secondaryGray.900", "white");
+  const textColorSecondary = useColorModeValue("secondaryGray.600", "white");
+
+  return (
+    <Card py='15px'>
+      <Flex
+        my='auto'
+        h='100%'
+        align={{ base: "center", xl: "start" }}
+        justify={{ base: "center", xl: "center" }}>
+        {startContent}
+
+        <Box ms={startContent ? "18px" : "0px"}>
+          <Text
+            color={textColorSecondary}
+            fontSize={{ base: "xs" }}
+            fontWeight='500'
+            me='14px'>
+            {name}
+          </Text>
+          <Text
+            color={textColor}
+            fontSize={{ base: "2xl" }}
+            fontWeight='700'
+            lineHeight='100%'>
+            {value}
+          </Text>
+        </Box>
+      </Flex>
+    </Card>
+  );
+};
+
+export default function Dashboard() {
+  // --- ESTADOS ---
+  const [loading, setLoading] = useState(true);
+  
+  // Dados do Resumo
+  const [stats, setStats] = useState({
+    total_agricultores: 0,
+    total_solicitacoes: 0,
+    total_hectares_cadastrados: 0,
+    solicitacoes_status: {
+      pendentes: 0,
+      em_andamento: 0,
+      concluidas: 0
+    }
+  });
+
+  // Dados dos Gráficos
+  const [graficoServicos, setGraficoServicos] = useState({ categories: [], data: [] });
+  const [graficoStatus, setGraficoStatus] = useState([]);
+
+  // Cores do Tema
+  const brandColor = useColorModeValue("brand.500", "white");
+  const boxBg = useColorModeValue("secondaryGray.300", "whiteAlpha.100");
+  const textColor = useColorModeValue("secondaryGray.900", "white");
+
+  // --- BUSCA DE DADOS ---
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+
+        // 1. Busca Resumo
+        const resumoData = await getDashboardResumo();
+        const dadosSeguros = resumoData || {
+            total_agricultores: 0,
+            total_solicitacoes: 0,
+            total_hectares_cadastrados: 0,
+            solicitacoes_status: { pendentes: 0, em_andamento: 0, concluidas: 0 }
+        };
+        setStats(dadosSeguros);
+
+        // Prepara dados para o Gráfico de Rosca
+        setGraficoStatus([
+            dadosSeguros.solicitacoes_status?.pendentes || 0,
+            dadosSeguros.solicitacoes_status?.em_andamento || 0,
+            dadosSeguros.solicitacoes_status?.concluidas || 0
+        ]);
+
+        // 2. Busca Gráficos
+        const graficosData = await getDashboardGraficos();
+        if (graficosData && graficosData.servicos_populares) {
+            const categories = graficosData.servicos_populares.map(item => item.name);
+            const data = graficosData.servicos_populares.map(item => item.value);
+            setGraficoServicos({ categories, data });
+        }
+
+      } catch (error) {
+        console.error("Erro dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  // --- OPÇÕES DOS GRÁFICOS ---
+  
+  // 1. Barras (Serviços)
+  const barChartOptions = {
+    chart: { toolbar: { show: false } },
+    tooltip: { theme: "dark" },
+    xaxis: { 
+      categories: graficoServicos.categories,
+      labels: { style: { colors: "#A3AED0", fontSize: "12px", fontWeight: "500" } }
+    },
+    yaxis: { show: false },
+    grid: { show: false, strokeDashArray: 5, yaxis: { lines: { show: true } } },
+    fill: { type: "solid", colors: ["#4318FF"] },
+    dataLabels: { enabled: false },
+    plotOptions: { bar: { borderRadius: 4, columnWidth: "40px" } }
+  };
+  const barChartSeries = [{ name: "Solicitações", data: graficoServicos.data }];
+
+  // 2. Rosca (Donut) - Status
+  const donutChartOptions = {
+    labels: ["Pendentes", "Em Andamento", "Concluídas"],
+    colors: ["#FFB547", "#4318FF", "#05CD99"], 
+    chart: { width: "100%" },
+    states: { hover: { filter: { type: "none" } } },
+    legend: { show: true, position: "bottom" },
+    dataLabels: { enabled: false },
+    hover: { mode: null },
+    plotOptions: {
+      pie: {
+        expandOnClick: false,
+        donut: {
+          labels: {
+            show: true,
+            total: {
+              showAlways: true,
+              show: true,
+              label: "Total",
+              fontSize: "22px",
+              fontWeight: "bold",
+              color: textColor,
+            },
+            value: { fontSize: "30px", show: true, color: textColor }
+          }
+        }
+      }
+    },
+    tooltip: { enabled: true, theme: "dark" },
+  };
+
+  if (loading) return (<Flex justify='center' align='center' h='50vh'><Spinner size='xl' color={brandColor} /></Flex>);
+
+  return (
+    <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
+      
+      {/* LINHA 1: CARTÕES */}
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} gap='20px' mb='20px'>
+        <MiniStatistics
+          startContent={<IconBox w='56px' h='56px' bg={boxBg} icon={<Icon w='32px' h='32px' as={MdAgriculture} color={brandColor} />} />}
+          name='Agricultores' value={stats.total_agricultores}
+        />
+        <MiniStatistics
+          startContent={<IconBox w='56px' h='56px' bg={boxBg} icon={<Icon w='32px' h='32px' as={MdAssignment} color={brandColor} />} />}
+          name='Total Pedidos' value={stats.total_solicitacoes}
+        />
+        <MiniStatistics
+          startContent={<IconBox w='56px' h='56px' bg={boxBg} icon={<Icon w='32px' h='32px' as={MdTerrain} color='green.500' />} />}
+          name='Hectares Totais' value={stats.total_hectares_cadastrados}
+        />
+        <MiniStatistics
+          startContent={<IconBox w='56px' h='56px' bg='orange.100' icon={<Icon w='32px' h='32px' as={MdAccessTime} color='orange.500' />} />}
+          name='Pendências' value={stats.solicitacoes_status?.pendentes || 0}
+        />
+      </SimpleGrid>
+
+      {/* LINHA 2: GRÁFICOS */}
+      <SimpleGrid columns={{ base: 1, md: 2 }} gap='20px' mb='20px'>
+        <Card p='20px' align='center' direction='column' w='100%'>
+            <Flex justify='space-between' align='center' w='100%' mb='20px'>
+                <Text color={textColor} fontSize='lg' fontWeight='700'>Serviços Mais Solicitados</Text>
+                <Icon as={MdBarChart} color={brandColor} w='24px' h='24px' />
+            </Flex>
+            <Box h='240px' w='100%'>
+                <ReactApexChart options={barChartOptions} series={barChartSeries} type='bar' width='100%' height='100%' />
+            </Box>
+        </Card>
+
+        <Card p='20px' align='center' direction='column' w='100%'>
+            <Flex justify='space-between' align='center' w='100%' mb='8px'>
+                <Text color={textColor} fontSize='lg' fontWeight='700'>Status das Solicitações</Text>
+                <Icon as={MdCheckCircle} color='green.500' w='24px' h='24px' />
+            </Flex>
+            <Box h='250px' mt='auto' w='100%'>
+                <ReactApexChart options={donutChartOptions} series={graficoStatus} type='donut' width='100%' height='100%' />
+            </Box>
+        </Card>
+      </SimpleGrid>
+    </Box>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 28: src/views/admin/profile/index.jsx
+# =============================================================================
+```python:index.jsx:src/views/admin/profile/index.jsx
+// src/views/admin/profile/index.jsx
+
+import React from "react";
+import { Box, Grid, Text, useColorModeValue, Avatar, Flex, Badge, Icon } from "@chakra-ui/react";
+import { MdVerified, MdEmail, MdPerson } from "react-icons/md";
+import Card from "components/card/Card"; 
+import { useAuth } from "contexts/AuthContext"; 
+
+export default function ProfileOverview() {
+  const textColor = useColorModeValue("secondaryGray.900", "white");
+  const grayColor = useColorModeValue("gray.500", "gray.400");
+  
+  // Pegando dados do usuário logado do Contexto
+  const { authData } = useAuth();
+  const user = authData?.user;
+
+  // Definição de cores e textos baseados no perfil
+  const isAdmin = user?.perfil === 'admin';
+  
+  // --- MUDANÇA AQUI: Cor Fixa "Brand" (Azul) para todo mundo ---
+  const bannerColor = 'linear(to-b, brand.400, brand.600)';
+  
+  const roleName = isAdmin ? 'Administrador' : 'Produtor Rural';
+
+  return (
+    <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
+      <Grid templateColumns={{ base: "1fr", lg: "1fr" }} gap={{ base: "20px", xl: "20px" }}>
+        
+        {/* Cartão de Perfil */}
+        <Card mb={{ base: "0px", lg: "20px" }} align='center'>
+          
+          {/* Fundo colorido no topo */}
+          <Box
+            bgGradient={bannerColor}
+            h='130px'
+            w='100%'
+            borderRadius='20px 20px 0 0'
+            mb='60px'
+            position='relative'
+          >
+            {/* Foto / Avatar */}
+            <Flex justify="center">
+                <Avatar
+                    name={user?.nome || "Usuário"}
+                    src="" 
+                    h='120px'
+                    w='120px'
+                    border='5px solid white'
+                    position='absolute'
+                    bottom='-60px'
+                    // --- MUDANÇA AQUI: Fundo do Avatar sempre azul ---
+                    bg="brand.500"
+                    color="white"
+                    fontSize="50px"
+                    fontWeight="bold"
+                />
+            </Flex>
+          </Box>
+
+          <Flex direction='column' align='center' p='20px'>
+            
+            {/* Nome e Ícone de Verificado */}
+            <Flex align="center" gap={2} mt="10px">
+                <Text color={textColor} fontWeight='bold' fontSize='2xl'>
+                {user?.nome || "Visitante"}
+                </Text>
+                <Icon as={MdVerified} color="blue.500" w={5} h={5} />
+            </Flex>
+
+            {/* Email */}
+            <Flex align="center" gap={2} mb="15px">
+                <Icon as={MdEmail} color="gray.400" />
+                <Text color={grayColor} fontSize='md'>
+                {user?.login || "email@exemplo.com"}
+                </Text>
+            </Flex>
+
+            {/* Badge do Cargo */}
+            <Badge 
+                // --- MUDANÇA AQUI: Badge sempre na cor da marca ---
+                colorScheme="brand" 
+                fontSize="1em" 
+                borderRadius="full" 
+                px="20px" 
+                py="5px"
+                mb="30px"
+                textTransform="uppercase"
+                variant="solid"
+            >
+                {roleName}
+            </Badge>
+
+            {/* Estatísticas */}
+            <Grid templateColumns="repeat(3, 1fr)" gap={10} w="80%" borderTop="1px solid" borderColor="gray.100" pt="30px" pb="10px">
+                <Flex direction="column" align="center">
+                    <Text fontWeight="bold" fontSize="2xl" color={textColor}>BR</Text>
+                    <Text fontSize="sm" color={grayColor}>País</Text>
+                </Flex>
+                <Flex direction="column" align="center">
+                    <Icon as={MdPerson} w="30px" h="30px" color={textColor} mb="5px"/>
+                    <Text fontSize="sm" color={grayColor}>Perfil Ativo</Text>
+                </Flex>
+                <Flex direction="column" align="center">
+                    <Text fontWeight="bold" fontSize="2xl" color={textColor}>2026</Text>
+                    <Text fontSize="sm" color={grayColor}>Membro desde</Text>
+                </Flex>
+            </Grid>
+
+          </Flex>
+        </Card>
+      </Grid>
+    </Box>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 29: src/views/auth/signIn/index.jsx
+# =============================================================================
+```python:index.jsx:src/views/auth/signIn/index.jsx
+// src/views/auth/signIn/index.jsx
+
+import React from 'react';
+import {
+  Box,
+  Button,
+  Flex,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
+  Heading,
+  Icon,
+  Input,
+  InputGroup,
+  InputRightElement,
+  Text,
+  useColorModeValue,
+  useToast,
+  VStack
+} from '@chakra-ui/react';
+
+import { NavLink, Navigate } from 'react-router-dom';
+import { MdOutlineRemoveRedEye } from 'react-icons/md';
+import { RiEyeCloseLine } from 'react-icons/ri';
+import { Formik, Form, Field } from 'formik';
+import * as Yup from 'yup';
+
+// Importa o contexto de autenticação
+import { useAuth } from 'contexts/AuthContext';
+
+function SignIn() {
+  // --- 1. CONFIGURAÇÕES VISUAIS ---
+  const bgForm = useColorModeValue('white', 'gray.800');
+  const textColor = useColorModeValue('gray.800', 'white');
+  const textColorSecondary = 'gray.500';
+  const brandColor = 'brand.500'; 
+  const inputBorder = useColorModeValue('gray.200', 'gray.600');
+  const inputBg = useColorModeValue('gray.50', 'gray.700');
+
+  const [show, setShow] = React.useState(false);
+  const handleClick = () => setShow(!show);
+  const toast = useToast();
+
+  const { login, authData } = useAuth();
+
+  // --- 2. LÓGICA DE LOGIN ---
+  const handleLogin = async (values, actions) => {
+    try {
+      // Chama a função login passando os campos exatos que o Python espera
+      await login(values.login, values.senha);
+      
+      toast({
+        title: "Bem-vindo de volta!",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "top-right"
+      });
+      
+    } catch (error) {
+      console.error("Erro no login:", error);
+      toast({
+        title: "Falha no acesso",
+        description: "Usuário ou senha incorretos. Verifique suas credenciais.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "top-right"
+      });
+    } finally {
+      actions.setSubmitting(false);
+    }
+  };
+
+  // Se já estiver logado, redireciona para a página correta baseada no perfil
+  if (authData) {
+    if (authData.user?.perfil === 'agricultor') {
+        // --- CORREÇÃO AQUI ---
+        // Agora ele vai para o PAINEL COM BOTÕES, e não direto para a lista
+        return <Navigate to="/produtor/dashboard" replace />;
+    }
+    // Admin, Gestor ou Técnico vão para o Dashboard Admin
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  return (
+    <Flex position='relative' h='100vh' w='100%' overflow='hidden'>
+      
+      {/* ================= LADO ESQUERDO: FORMULÁRIO ================= */}
+      <Flex
+        h='100%'
+        w={{ base: '100%', md: '50%', lg: '45%' }}
+        bg={bgForm}
+        justifyContent='center'
+        alignItems='center'
+        direction='column'
+        p={{ base: '30px', md: '60px', lg: '80px' }}
+      >
+        <Box w='100%' maxW='450px'>
+          {/* Cabeçalho */}
+          <VStack align='start' spacing={3} mb='40px'>
+            <Heading color={textColor} fontSize={{ base: '32px', md: '40px' }} fontWeight='800' lineHeight='1.1'>
+              Acessar <br/>
+              <Text as="span" color={brandColor}>RuralGest</Text>
+            </Heading>
+            <Text color={textColorSecondary} fontSize='lg'>
+              Entre com suas credenciais para gerenciar o sistema.
+            </Text>
+          </VStack>
+
+          {/* Form */}
+          <Formik
+            initialValues={{ login: '', senha: '' }}
+            validationSchema={Yup.object({
+              login: Yup.string().required('Usuário é obrigatório'),
+              senha: Yup.string().required('Senha é obrigatória'),
+            })}
+            onSubmit={handleLogin}
+          >
+            {(props) => (
+              <Form>
+                <VStack spacing={5}>
+                  
+                  {/* CAMPO USUÁRIO (LOGIN) */}
+                  <Field name='login'>
+                    {({ field, form }) => (
+                      <FormControl isInvalid={form.errors.login && form.touched.login}>
+                        <FormLabel fontWeight='600' color={textColor} ml={1}>Usuário (Email)</FormLabel>
+                        <Input
+                          {...field}
+                          variant='outline'
+                          placeholder='ex: admin@gmail.com'
+                          size='lg' h='56px' bg={inputBg} borderColor={inputBorder} borderRadius='16px'
+                          _focus={{ borderColor: brandColor, boxShadow: `0 0 0 1px ${brandColor}`, bg: bgForm }}
+                        />
+                        <FormErrorMessage ml={1}>{form.errors.login}</FormErrorMessage>
+                      </FormControl>
+                    )}
+                  </Field>
+
+                  {/* CAMPO SENHA */}
+                  <Field name='senha'>
+                    {({ field, form }) => (
+                      <FormControl isInvalid={form.errors.senha && form.touched.senha}>
+                        <FormLabel fontWeight='600' color={textColor} ml={1}>Senha</FormLabel>
+                        <InputGroup size='lg'>
+                          <Input
+                            {...field}
+                            placeholder='Digite sua senha'
+                            type={show ? 'text' : 'password'}
+                            variant='outline'
+                            size='lg' h='56px' bg={inputBg} borderColor={inputBorder} borderRadius='16px'
+                            _focus={{ borderColor: brandColor, boxShadow: `0 0 0 1px ${brandColor}`, bg: bgForm }}
+                          />
+                          <InputRightElement h='56px' width='50px' display='flex' alignItems='center'>
+                            <Icon color={textColorSecondary} as={show ? RiEyeCloseLine : MdOutlineRemoveRedEye} onClick={handleClick} cursor='pointer' w='22px' h='22px' />
+                          </InputRightElement>
+                        </InputGroup>
+                        <FormErrorMessage ml={1}>{form.errors.senha}</FormErrorMessage>
+                      </FormControl>
+                    )}
+                  </Field>
+
+                  <Button fontSize='lg' variant='solid' colorScheme='brand' fontWeight='700' w='100%' h='56px' borderRadius='16px' type='submit' isLoading={props.isSubmitting} mt={4} boxShadow='lg'>
+                    Entrar
+                  </Button>
+                </VStack>
+              </Form>
+            )}
+          </Formik>
+
+          <Flex justifyContent='center' alignItems='center' mt='30px'>
+            <Text color={textColorSecondary} fontSize='md'>
+              Ainda não tem acesso?
+              <NavLink to='/auth/sign-up'>
+                <Text color={brandColor} as='span' ms='5px' fontWeight='700' _hover={{ textDecoration: 'underline' }}>
+                  Crie sua conta
+                </Text>
+              </NavLink>
+            </Text>
+          </Flex>
+        </Box>
+      </Flex>
+
+      {/* ================= LADO DIREITO: IMAGEM ================= */}
+      <Flex
+        w={{ base: '0%', md: '50%', lg: '55%' }}
+        h='100%'
+        display={{ base: 'none', md: 'flex' }}
+        position='relative'
+        justifyContent='center'
+        alignItems='flex-end'
+        p='80px'
+        bg='gray.900'
+      >
+        <Box
+          position='absolute' top='0' left='0' w='100%' h='100%'
+          bgImage="url('https://images.unsplash.com/photo-1560493676-04071c5f467b?q=80&w=1074&auto=format&fit=crop')"
+          bgSize='cover'
+          bgPosition='center'
+          zIndex={0}
+        />
+        <Box
+          position='absolute' top='0' left='0' w='100%' h='100%'
+          bgGradient="linear(to-t, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.1) 100%)"
+          zIndex={1}
+        />
+        <VStack position='relative' zIndex={2} align='start' spacing={2} maxW='600px' mb='40px'>
+          <Heading color='white' fontSize={{ md: '40px', lg: '50px' }} fontWeight='800' lineHeight='1.2' textShadow="2px 2px 4px rgba(0,0,0,0.6)">
+            Tecnologia e <br/>Gestão no Campo.
+          </Heading>
+          <Text color='gray.200' fontSize='xl' fontWeight='400' textShadow="1px 1px 2px rgba(0,0,0,0.6)">
+            A solução completa para o gerenciamento de máquinas e serviços agrícolas.
+          </Text>
+        </VStack>
+      </Flex>
+
+    </Flex>
+  );
+}
+
+export default SignIn;
+```eof
+
+# =============================================================================
+# FICHEIRO 30: src/views/auth/signUp/index.jsx
+# =============================================================================
+```python:index.jsx:src/views/auth/signUp/index.jsx
+// src/views/auth/signUp/index.jsx
+
+import React from 'react';
+import {
+  Box,
+  Button,
+  Flex,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
+  Heading,
+  Icon,
+  Input,
+  InputGroup,
+  InputRightElement,
+  Text,
+  useColorModeValue,
+  useToast,
+  VStack,
+  SimpleGrid // Novo import para organizar campos lado a lado
+} from '@chakra-ui/react';
+import { NavLink, Navigate } from 'react-router-dom';
+import { MdOutlineRemoveRedEye, MdArrowBack } from 'react-icons/md';
+import { RiEyeCloseLine } from 'react-icons/ri';
+import { Formik, Form, Field } from 'formik';
+import * as Yup from 'yup';
+
+import { createUsuario } from 'services/usuarioService';
+import { useAuth } from 'contexts/AuthContext';
+
+function SignUp() {
+  // --- 1. CONFIGURAÇÕES VISUAIS ---
+  const bgForm = useColorModeValue('white', 'gray.800');
+  const textColor = useColorModeValue('gray.800', 'white');
+  const textColorSecondary = 'gray.500';
+  const brandColor = 'brand.500';
+  
+  const inputBorder = useColorModeValue('gray.200', 'gray.600');
+  const inputBg = useColorModeValue('gray.50', 'gray.700');
+
+  const [show, setShow] = React.useState(false);
+  const handleClick = () => setShow(!show);
+  const toast = useToast();
+  
+  const { authData } = useAuth();
+
+  // --- 2. LÓGICA DE CADASTRO ATUALIZADA ---
+  const handleRegister = async (values, actions) => {
+    try {
+      const newUser = {
+        nome: values.nome,
+        login: values.login,
+        senha: values.senha,
+        // Novos campos obrigatórios do Back-end Matheus
+        cpf: values.cpf,
+        comunidade: values.comunidade,
+        contato: values.contato, // Opcional no código dele, mas bom enviar
+        perfil: 'agricultor' 
+      };
+      
+      await createUsuario(newUser);
+      
+      toast({
+        title: "Cadastro realizado!",
+        description: "Sua conta foi criada com sucesso.",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+        position: "top-right"
+      });
+
+      actions.setSubmitting(false);
+      
+      setTimeout(() => {
+         window.location.href = '/auth/sign-in';
+      }, 1000);
+      
+    } catch (error) {
+      // Tenta pegar a mensagem de erro específica do Back-end (ex: CPF já existe)
+      const mensagemErro = error.response?.data?.message || "Verifique os dados e tente novamente.";
+      
+      toast({
+        title: "Erro ao cadastrar.",
+        description: mensagemErro,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "top-right"
+      });
+      actions.setSubmitting(false);
+    }
+  };
+
+  if (authData) {
+    if (authData.user.perfil === 'agricultor') {
+      return <Navigate to="/produtor/minhas-solicitacoes" replace />;
+    }
+    return <Navigate to="/admin" replace />;
+  }
+
+  return (
+    <Flex position='relative' h='100vh' w='100%' overflow='hidden'>
+      
+      {/* ================= LADO ESQUERDO: FORMULÁRIO ================= */}
+      <Flex
+        h='100%'
+        w={{ base: '100%', md: '50%', lg: '45%' }}
+        bg={bgForm}
+        justifyContent='center'
+        alignItems='center'
+        direction='column'
+        p={{ base: '30px', md: '60px' }}
+        overflowY="auto"
+      >
+        <Box w='100%' maxW='450px'>
+          
+          <Box mb="20px">
+             <NavLink to='/auth/sign-in'>
+                <Flex align="center" color={textColorSecondary} _hover={{ color: brandColor }} transition="all 0.2s">
+                    <Icon as={MdArrowBack} mr="5px" />
+                    <Text fontSize="sm" fontWeight="600">Voltar para Login</Text>
+                </Flex>
+             </NavLink>
+          </Box>
+
+          <VStack align='start' spacing={2} mb='30px'>
+            <Heading color={textColor} fontSize={{ base: '30px', md: '36px' }} fontWeight='800' lineHeight='1.1'>
+              Crie sua conta <br/>
+              <Text as="span" color={brandColor}>RuralGest</Text>
+            </Heading>
+            <Text color={textColorSecondary} fontSize='md'>
+              Preencha os dados completos para o cadastro rural.
+            </Text>
+          </VStack>
+
+          <Formik
+            initialValues={{ 
+                nome: '', 
+                cpf: '', 
+                comunidade: '', 
+                contato: '', 
+                login: '', 
+                senha: '', 
+                confirmarSenha: '' 
+            }}
+            validationSchema={Yup.object({
+              nome: Yup.string().required('Nome é obrigatório'),
+              cpf: Yup.string().required('CPF é obrigatório').min(11, 'CPF incompleto'),
+              comunidade: Yup.string().required('Comunidade é obrigatória'),
+              contato: Yup.string().required('Telefone é obrigatório'),
+              login: Yup.string().required('Usuário é obrigatório'),
+              senha: Yup.string().required('Senha é obrigatória').min(6, 'Mínimo de 6 caracteres'),
+              confirmarSenha: Yup.string().oneOf([Yup.ref('senha'), null], 'As senhas não conferem').required('Confirmação obrigatória'),
+            })}
+            onSubmit={handleRegister}
+          >
+            {(props) => (
+              <Form>
+                <VStack spacing={4}>
+                  
+                  {/* Nome Completo */}
+                  <Field name='nome'>
+                    {({ field, form }) => (
+                      <FormControl isInvalid={form.errors.nome && form.touched.nome}>
+                        <FormLabel fontWeight='600' color={textColor} fontSize='sm' ml={1}>Nome Completo</FormLabel>
+                        <Input {...field} placeholder='ex: João da Silva' size='lg' h='50px' bg={inputBg} borderColor={inputBorder} borderRadius='16px' _focus={{ borderColor: brandColor }} />
+                        <FormErrorMessage ml={1}>{form.errors.nome}</FormErrorMessage>
+                      </FormControl>
+                    )}
+                  </Field>
+
+                  {/* CPF e Telefone na mesma linha */}
+                  <SimpleGrid columns={2} spacing={4} w="100%">
+                      <Field name='cpf'>
+                        {({ field, form }) => (
+                          <FormControl isInvalid={form.errors.cpf && form.touched.cpf}>
+                            <FormLabel fontWeight='600' color={textColor} fontSize='sm' ml={1}>CPF</FormLabel>
+                            <Input {...field} placeholder='000.000.000-00' size='lg' h='50px' bg={inputBg} borderColor={inputBorder} borderRadius='16px' _focus={{ borderColor: brandColor }} />
+                            <FormErrorMessage ml={1}>{form.errors.cpf}</FormErrorMessage>
+                          </FormControl>
+                        )}
+                      </Field>
+                      <Field name='contato'>
+                        {({ field, form }) => (
+                          <FormControl isInvalid={form.errors.contato && form.touched.contato}>
+                            <FormLabel fontWeight='600' color={textColor} fontSize='sm' ml={1}>Telefone</FormLabel>
+                            <Input {...field} placeholder='(83) 99999-9999' size='lg' h='50px' bg={inputBg} borderColor={inputBorder} borderRadius='16px' _focus={{ borderColor: brandColor }} />
+                            <FormErrorMessage ml={1}>{form.errors.contato}</FormErrorMessage>
+                          </FormControl>
+                        )}
+                      </Field>
+                  </SimpleGrid>
+
+                  {/* Comunidade */}
+                  <Field name='comunidade'>
+                    {({ field, form }) => (
+                      <FormControl isInvalid={form.errors.comunidade && form.touched.comunidade}>
+                        <FormLabel fontWeight='600' color={textColor} fontSize='sm' ml={1}>Comunidade Rural</FormLabel>
+                        <Input {...field} placeholder='ex: Sítio Cajueiro' size='lg' h='50px' bg={inputBg} borderColor={inputBorder} borderRadius='16px' _focus={{ borderColor: brandColor }} />
+                        <FormErrorMessage ml={1}>{form.errors.comunidade}</FormErrorMessage>
+                      </FormControl>
+                    )}
+                  </Field>
+
+                  {/* Usuário (Login) */}
+                  <Field name='login'>
+                    {({ field, form }) => (
+                      <FormControl isInvalid={form.errors.login && form.touched.login}>
+                        <FormLabel fontWeight='600' color={textColor} fontSize='sm' ml={1}>Usuário (Login)</FormLabel>
+                        <Input {...field} placeholder='ex: joao.silva' size='lg' h='50px' bg={inputBg} borderColor={inputBorder} borderRadius='16px' _focus={{ borderColor: brandColor }} />
+                        <FormErrorMessage ml={1}>{form.errors.login}</FormErrorMessage>
+                      </FormControl>
+                    )}
+                  </Field>
+
+                  {/* Senha */}
+                  <Field name='senha'>
+                    {({ field, form }) => (
+                      <FormControl isInvalid={form.errors.senha && form.touched.senha}>
+                        <FormLabel fontWeight='600' color={textColor} fontSize='sm' ml={1}>Senha</FormLabel>
+                        <InputGroup size='lg'>
+                          <Input {...field} placeholder='Mínimo 6 caracteres' type={show ? 'text' : 'password'} h='50px' bg={inputBg} borderColor={inputBorder} borderRadius='16px' _focus={{ borderColor: brandColor }} />
+                          <InputRightElement h='50px' width='50px' display='flex' alignItems='center'>
+                            <Icon color={textColorSecondary} as={show ? RiEyeCloseLine : MdOutlineRemoveRedEye} onClick={handleClick} cursor='pointer' />
+                          </InputRightElement>
+                        </InputGroup>
+                        <FormErrorMessage ml={1}>{form.errors.senha}</FormErrorMessage>
+                      </FormControl>
+                    )}
+                  </Field>
+
+                  {/* Confirmar Senha */}
+                  <Field name='confirmarSenha'>
+                    {({ field, form }) => (
+                      <FormControl isInvalid={form.errors.confirmarSenha && form.touched.confirmarSenha}>
+                        <FormLabel fontWeight='600' color={textColor} fontSize='sm' ml={1}>Confirmar Senha</FormLabel>
+                        <Input {...field} placeholder='Repita a senha' type='password' h='50px' bg={inputBg} borderColor={inputBorder} borderRadius='16px' _focus={{ borderColor: brandColor }} />
+                        <FormErrorMessage ml={1}>{form.errors.confirmarSenha}</FormErrorMessage>
+                      </FormControl>
+                    )}
+                  </Field>
+
+                  <Button fontSize='lg' variant='solid' colorScheme='brand' fontWeight='bold' w='100%' h='56px' borderRadius='16px' type='submit' isLoading={props.isSubmitting} mt={4} boxShadow='lg'>
+                    Criar Conta
+                  </Button>
+
+                </VStack>
+              </Form>
+            )}
+          </Formik>
+
+          <Flex justifyContent='center' alignItems='center' mt='30px' mb='20px'>
+            <Text color={textColorSecondary} fontSize='sm'>
+              Já tem uma conta?
+              <NavLink to='/auth/sign-in'>
+                <Text color={brandColor} as='span' ms='5px' fontWeight='bold' _hover={{ textDecoration: 'underline' }}>
+                  Acesse aqui
+                </Text>
+              </NavLink>
+            </Text>
+          </Flex>
+        </Box>
+      </Flex>
+
+      {/* ================= LADO DIREITO (Mantido igual) ================= */}
+      <Flex
+        w={{ base: '0%', md: '50%', lg: '55%' }}
+        h='100%'
+        display={{ base: 'none', md: 'flex' }}
+        position='relative'
+        justifyContent='center'
+        alignItems='flex-end'
+        p='80px'
+        bg='gray.900'
+      >
+        <Box position='absolute' top='0' left='0' w='100%' h='100%' bgImage="url('https://images.unsplash.com/photo-1560493676-04071c5f467b?q=80&w=1074&auto=format&fit=crop')" bgSize='cover' bgPosition='center' zIndex={0} />
+        <Box position='absolute' top='0' left='0' w='100%' h='100%' bgGradient="linear(to-t, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.1) 100%)" zIndex={1} />
+        <VStack position='relative' zIndex={2} align='start' spacing={3} maxW='600px' mb='40px'>
+          <Heading color='white' fontSize={{ md: '40px', lg: '48px' }} fontWeight='800' lineHeight='1.1' textShadow="2px 2px 4px rgba(0,0,0,0.6)">
+            Junte-se ao <br/>RuralGest.
+          </Heading>
+          <Text color='gray.200' fontSize='xl' fontWeight='400' maxW="480px" textShadow="1px 1px 2px rgba(0,0,0,0.6)">
+            Faça seu cadastro completo e comece a gerenciar suas solicitações.
+          </Text>
+        </VStack>
+      </Flex>
+
+    </Flex>
+  );
+}
+
+export default SignUp;
+```eof
+
+# =============================================================================
+# FICHEIRO 31: src/views/landing/LandingPage.jsx
+# =============================================================================
+```python:LandingPage.jsx:src/views/landing/LandingPage.jsx
+// src/views/landing/LandingPage.jsx
+
+import React from "react";
+import { Box, Flex, Button, Heading, Text, Stack } from "@chakra-ui/react";
+
+export default function LandingPage() {
+  return (
+    <Flex
+      direction="column"
+      align="center"
+      justify="center"
+      h="100vh"
+      bg="gray.100"
+    >
+      <Stack spacing={4} maxW={"3xl"} textAlign="center">
+        <Heading fontSize={"4xl"} fontWeight={700}>
+          Sistema de Gestão Rural – Pirpirituba
+        </Heading>
+        <Text color={"gray.600"} fontSize={"xl"}>
+          Aproximando agricultores e a secretaria, facilitando a solicitação
+          e execução de serviços de forma moderna e eficiente.
+        </Text>
+        <Stack spacing={6} direction={"row"} justify="center">
+          {/* */}
+          <Button
+            as="a"
+            href="/#/auth/sign-in"
+            rounded={"full"}
+            px={6}
+            colorScheme={"brand"}
+            bg={"brand.400"}
+            _hover={{ bg: "brand.500" }}
+          >
+            Acessar o Sistema
+          </Button>
+        </Stack>
+      </Stack>
+    </Flex>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 32: src/views/produtor/DashboardProdutor.jsx
+# =============================================================================
+```python:DashboardProdutor.jsx:src/views/produtor/DashboardProdutor.jsx
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Box, Flex, Button, Heading, Text, SimpleGrid, useColorModeValue, Icon,
+  Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
+  FormControl, FormLabel, Select, useDisclosure, FormErrorMessage, useToast
+} from "@chakra-ui/react";
+import { MdAdd, MdList } from "react-icons/md";
+import Card from "components/card/Card.js";
+import { Link } from "react-router-dom";
+import { Formik, Form, Field } from 'formik';
+import * as Yup from 'yup';
+
+import { useAuth } from "contexts/AuthContext";
+import { getServicos } from "services/servicoService";
+import { getPropriedades } from "services/propriedadeService";
+import { createSolicitacao } from "services/solicitacaoService";
+
+const RequestSchema = Yup.object().shape({
+  servicoId: Yup.string().required('Selecione o serviço'),
+  propriedadeId: Yup.string().required('Selecione a propriedade'),
+});
+
+export default function DashboardProdutor() {
+  const textColor = useColorModeValue("secondaryGray.900", "white");
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const toast = useToast();
+  const { authData } = useAuth();
+  const userLogado = authData?.user;
+
+  const [propriedades, setPropriedades] = useState([]);
+  const [servicos, setServicos] = useState([]);
+
+  const fetchInitialData = useCallback(async () => {
+    if (!userLogado) return;
+    try {
+      const [propRes, servRes] = await Promise.all([getPropriedades(), getServicos()]);
+      
+      // Filtramos as propriedades do usuário logado
+      const minhasProps = propRes.data.filter(p => 
+        String(p.agricultor_id || p.agricultor?.id) === String(userLogado.agricultor_id || userLogado.id)
+      );
+
+      setPropriedades(minhasProps.length > 0 ? minhasProps : propRes.data);
+      setServicos(servRes.data);
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+    }
+  }, [userLogado]);
+
+  useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
+
+  const handleSubmit = async (values, actions) => {
+    try {
+      // ESTRATÉGIA PARA CORRIGIR O ERRO 500:
+      // Em vez de usar userLogado.id (que é 3), vamos pegar o agricultor_id
+      // que já está salvo dentro do objeto da propriedade selecionada.
+      const propriedadeSelecionada = propriedades.find(p => String(p.id) === String(values.propriedadeId));
+      
+      const agricultorIdCorreto = propriedadeSelecionada?.agricultor_id || userLogado.agricultor_id || userLogado.id;
+
+      const payload = {
+        agricultor_id: parseInt(agricultorIdCorreto, 10),
+        propriedade_id: parseInt(values.propriedadeId, 10),
+        servico_id: parseInt(values.servicoId, 10),
+        status: "Pendente",
+        data_solicitacao: new Date().toISOString().split('T')[0],
+        observacoes: "Solicitação via Painel Produtor"
+      };
+
+      await createSolicitacao(payload);
+      
+      toast({ title: "Solicitação enviada com sucesso!", status: "success", duration: 5000 });
+      actions.setSubmitting(false);
+      onClose();
+    } catch (error) {
+      // Exibe o detalhe técnico que adicionamos no Python (detalhe_tecnico)
+      const erroBanco = error.response?.data?.detalhe_tecnico || "Erro de vínculo no banco.";
+      toast({ 
+        title: "Erro no Banco de Dados", 
+        description: erroBanco, 
+        status: "error", 
+        duration: 10000, 
+        isClosable: true 
+      });
+      actions.setSubmitting(false);
+    }
+  };
+
+  return (
+    <Flex direction="column" align="center" justify="center" pt={{ base: "130px", md: "80px" }} minH="80vh">
+      <Box maxW="container.lg" textAlign="center">
+        <Heading as="h1" size="xl" mb={6} color={textColor}>Olá, {userLogado?.nome}!</Heading>
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={10}>
+          <Card p={6}>
+            <Icon as={MdList} w={12} h={12} mx="auto" color="brand.500" />
+            <Heading size="md" mt={4}>Minhas Solicitações</Heading>
+            <Link to="/produtor/minhas-solicitacoes">
+              <Button colorScheme="brand" mt={4} width="full">Ver Histórico</Button>
+            </Link>
+          </Card>
+          <Card p={6}>
+            <Icon as={MdAdd} w={12} h={12} mx="auto" color="brand.500" />
+            <Heading size="md" mt={4}>Novo Pedido</Heading>
+            <Button colorScheme="brand" mt={4} width="full" onClick={onOpen}>Solicitar Serviço</Button>
+          </Card>
+        </SimpleGrid>
+      </Box>
+
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <Formik initialValues={{ servicoId: '', propriedadeId: '' }} validationSchema={RequestSchema} onSubmit={handleSubmit}>
+            {(props) => (
+              <Form>
+                <ModalHeader>Nova Solicitação</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody pb={6}>
+                  <Field name='servicoId'>
+                    {({ field, form }) => (
+                      <FormControl isInvalid={form.errors.servicoId && form.touched.servicoId}>
+                        <FormLabel>Serviço</FormLabel>
+                        <Select {...field} placeholder="Selecione o serviço">
+                          {servicos.map(s => <option key={s.id} value={s.id}>{s.nome_servico}</option>)}
+                        </Select>
+                      </FormControl>
+                    )}
+                  </Field>
+                  <Field name='propriedadeId'>
+                    {({ field, form }) => (
+                      <FormControl mt={4} isInvalid={form.errors.propriedadeId && form.touched.propriedadeId}>
+                        <FormLabel>Propriedade</FormLabel>
+                        <Select {...field} placeholder="Selecione a propriedade">
+                          {propriedades.map(p => <option key={p.id} value={p.id}>{p.terreno}</option>)}
+                        </Select>
+                      </FormControl>
+                    )}
+                  </Field>
+                </ModalBody>
+                <ModalFooter>
+                  <Button colorScheme='brand' mr={3} isLoading={props.isSubmitting} type='submit'>Enviar</Button>
+                  <Button onClick={onClose}>Cancelar</Button>
+                </ModalFooter>
+              </Form>
+            )}
+          </Formik>
+        </ModalContent>
+      </Modal>
+    </Flex>
+  );
+}
+```eof
+
+# =============================================================================
+# FICHEIRO 33: src/views/produtor/MinhasSolicitacoes.jsx
+# =============================================================================
+```python:MinhasSolicitacoes.jsx:src/views/produtor/MinhasSolicitacoes.jsx
+// src/views/produtor/MinhasSolicitacoes.jsx
+
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Flex, Heading, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
+  Spinner, useToast, Badge, Box
+} from "@chakra-ui/react";
+import Card from "components/card/Card.js";
+
+import { useAuth } from "contexts/AuthContext";
+import { getSolicitacoes } from "services/solicitacaoService";
+
+export default function MinhasSolicitacoes() {
+  const [solicitacoes, setSolicitacoes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const textColor = useColorModeValue("secondaryGray.900", "white");
+  const borderColor = useColorModeValue("gray.200", "whiteAlpha.100");
+  const toast = useToast();
+
+  const { authData } = useAuth();
+  const userLogado = authData?.user;
+
+  const fetchPageData = useCallback(async () => {
+    if (!userLogado) return;
+    setLoading(true);
+    try {
+      const solicitacoesRes = await getSolicitacoes();
+      
+      /** * FILTRAGEM CORRIGIDA:
+       * Usamos a mesma lógica do Dashboard: comparamos o ID do agricultor na 
+       * solicitação com o agricultor_id (ou id) do José.
+       */
+      const idBusca = userLogado.agricultor_id || userLogado.id;
+
+      const minhasSolicitacoes = solicitacoesRes.data.filter(sol => {
+        const idNasol = sol.agricultor_id || sol.agricultor?.id;
+        return String(idNasol) === String(idBusca);
+      });
+      
+      // Ordenar por data mais recente primeiro
+      minhasSolicitacoes.sort((a, b) => new Date(b.data_solicitacao) - new Date(a.data_solicitacao));
+      
+      setSolicitacoes(minhasSolicitacoes);
+
+    } catch (error) {
+      console.error("Erro ao buscar solicitações:", error);
+      toast({ 
+        title: "Erro ao buscar solicitações.", 
+        description: "Verifique sua conexão com o servidor.",
+        status: "error", 
+        duration: 5000, 
+        isClosable: true 
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [userLogado, toast]);
+
+  useEffect(() => {
+    fetchPageData();
+  }, [fetchPageData]);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "---";
+    return new Date(dateString).toLocaleDateString('pt-BR');
+  };
+  
+  const getStatusBadge = (status) => {
+    if (!status) return <Badge>N/A</Badge>;
+    const statusUpper = status.toUpperCase();
+
+    switch (statusUpper) {
+      case 'APROVADA':
+      case 'CONCLUÍDA':
+        return <Badge colorScheme='green' variant="subtle"> {statusUpper} </Badge>;
+      case 'RECUSADA':
+      case 'CANCELADA':
+        return <Badge colorScheme='red' variant="subtle"> {statusUpper} </Badge>;
+      case 'PENDENTE':
+        return <Badge colorScheme='yellow' variant="subtle"> {statusUpper} </Badge>;
+      default:
+        return <Badge colorScheme='blue' variant="subtle"> {statusUpper} </Badge>;
+    }
+  };
+
+  if (loading) return (
+    <Flex justify='center' align='center' height='50vh'>
+      <Spinner size='xl' color="brand.500" thickness="4px" />
+    </Flex>
+  );
+
+  return (
+    <Flex direction="column" pt={{ base: "130px", md: "80px" }} align="center">
+      <Card w="100%" maxW="container.xl" px="0px" pb="20px">
+        <Flex px="25px" justify="space-between" mb="20px" align="center">
+          <Heading as="h1" size="md" color={textColor}>
+            Minhas Solicitações de Serviço
+          </Heading>
+        </Flex>
+
+        <Box overflowX={{ sm: "scroll", lg: "hidden" }}>
+          <Table variant='simple' color="gray.500" mb="24px">
+            <Thead>
+              <Tr>
+                <Th borderColor={borderColor}>Serviço</Th>
+                <Th borderColor={borderColor}>Data Solicitação</Th>
+                <Th borderColor={borderColor}>Previsão Execução</Th>
+                <Th borderColor={borderColor}>Status</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {solicitacoes.map((sol) => (
+                <Tr key={sol.id}>
+                  <Td fontWeight="700" color={textColor}>
+                    {sol.servico?.nome_servico || 'Serviço Geral'}
+                  </Td>
+                  <Td>{formatDate(sol.data_solicitacao)}</Td>
+                  <Td>{formatDate(sol.data_execucao)}</Td>
+                  <Td>{getStatusBadge(sol.status)}</Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </Box>
+
+        {solicitacoes.length === 0 && (
+          <Flex direction="column" align="center" mt={10}>
+            <Text color="gray.400" fontSize="lg">Nenhum pedido encontrado.</Text>
+            <Text color="gray.400" fontSize="sm">Suas novas solicitações aparecerão aqui.</Text>
+          </Flex>
+        )}
+      </Card>
+    </Flex>
+  );
+}
+```eof
+
