@@ -18,29 +18,51 @@ export default function MinhasSolicitacoes() {
   const toast = useToast();
 
   const { authData } = useAuth();
+  console.log("--- DEBUG 1: AuthData Bruto ---", authData);
   const userLogado = authData?.user;
+  const agricultorLogado = authData?.agricultor; 
 
   const fetchPageData = useCallback(async () => {
+    
     if (!userLogado) return;
     setLoading(true);
     try {
-      const solicitacoesRes = await getSolicitacoes();
-      
-      /** * FILTRAGEM CORRIGIDA:
-       * Usamos a mesma lógica do Dashboard: comparamos o ID do agricultor na 
-       * solicitação com o agricultor_id (ou id) do José.
-       */
-      const idBusca = userLogado.agricultor_id || userLogado.id;
 
-      const minhasSolicitacoes = solicitacoesRes.data.filter(sol => {
-        const idNasol = sol.agricultor_id || sol.agricultor?.id;
-        return String(idNasol) === String(idBusca);
+      const idUser = userLogado?.id;
+      const idAgricultorNoUser = userLogado?.agricultor_id;
+      const idAgricultorObjeto = agricultorLogado?.id;
+
+      console.log("--- DEBUG 2: IDs Encontrados ---", {
+        id_do_usuario_logado: idUser,
+        agricultor_id_dentro_do_user: idAgricultorNoUser,
+        id_do_objeto_agricultor: idAgricultorObjeto
       });
+      // 1. Tenta descobrir o ID do Agricultor corretamente
+      // Se no login você salvou o objeto 'agricultor', use ele.
+      // Se salvou o ID dentro do user, use user.agricultor_id
+      const idParaBuscar = agricultorLogado?.id || userLogado?.agricultor_id;
+
+      if (!idParaBuscar) {
+        console.error("ID do Agricultor não encontrado no AuthContext", authData);
+        // Se não achou ID, não adianta buscar, vai vir vazio ou tudo
+        setLoading(false);
+        return;
+      }
+      console.log(`--- DEBUG 3: Buscando solicitações para Agricultor ID: ${idParaBuscar}`);
+
+      // 2. Chama o Backend passando o filtro (MUDANÇA AQUI)
+      // O Backend vai fazer o trabalho pesado e retornar só o que é desse ID
+      const solicitacoesRes = await getSolicitacoes({ agricultor_id: idParaBuscar });
+
+      console.log("--- DEBUG 4: Resposta do Backend ---", solicitacoesRes.data);
       
-      // Ordenar por data mais recente primeiro
+      const minhasSolicitacoes = solicitacoesRes.data;
+
+      // 3. Apenas ordenamos (Backend não ordenou por data, então ordenamos aqui)
       minhasSolicitacoes.sort((a, b) => new Date(b.data_solicitacao) - new Date(a.data_solicitacao));
       
       setSolicitacoes(minhasSolicitacoes);
+
 
     } catch (error) {
       console.error("Erro ao buscar solicitações:", error);
@@ -54,7 +76,7 @@ export default function MinhasSolicitacoes() {
     } finally {
       setLoading(false);
     }
-  }, [userLogado, toast]);
+  }, [authData, agricultorLogado, userLogado, toast]);
 
   useEffect(() => {
     fetchPageData();

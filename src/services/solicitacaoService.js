@@ -2,10 +2,11 @@
 
 import api from './api';
 
-// Função para buscar TODAS as solicitações (READ)
-export const getSolicitacoes = () => {
-    return api.get('/solicitacoes');
-};
+
+export const getSolicitacoes = (params = {}) => {
+    return api.get('/solicitacoes', { params: params });
+}
+
 
 // Função para buscar UMA solicitação por ID (READ)
 export const getSolicitacaoById = (id) => {

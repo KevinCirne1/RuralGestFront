@@ -7,5 +7,5 @@ export const getNotificacoes = async (usuarioId) => {
 };
 
 export const marcarComoLida = async (notificacaoId) => {
-  return await api.post(`/notificacoes/${notificacaoId}/ler`);
+  return await api.post(`/notificacoes/${notificacaoId}/id`);
 };
