@@ -7,5 +7,7 @@ export const getNotificacoes = async (usuarioId) => {
 };
 
 export const marcarComoLida = async (notificacaoId) => {
-  return await api.post(`/notificacoes/${notificacaoId}/id`);
+  // Antes estava: api.post(`/notificacoes/${notificacaoId}/id`); 
+  // O correto é PUT e sem o '/id' no final:
+  return await api.put(`/notificacoes/${notificacaoId}`);
 };
