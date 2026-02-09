@@ -1,8 +1,10 @@
+// src/views/produtor/DashboardProdutor.jsx
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Box, Flex, Button, Heading, Text, SimpleGrid, useColorModeValue, Icon,
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
-  FormControl, FormLabel, Select, useDisclosure, FormErrorMessage, useToast
+  FormControl, FormLabel, Select, useDisclosure, useToast
 } from "@chakra-ui/react";
 import { MdAdd, MdList } from "react-icons/md";
 import Card from "components/card/Card.js";
@@ -25,7 +27,10 @@ export default function DashboardProdutor() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
   const { authData } = useAuth();
+  
+  // Pegamos o agricultor logado diretamente do contexto
   const userLogado = authData?.user;
+  const agricultorLogado = authData?.agricultor; 
 
   const [propriedades, setPropriedades] = useState([]);
   const [servicos, setServicos] = useState([]);
@@ -35,31 +40,33 @@ export default function DashboardProdutor() {
     try {
       const [propRes, servRes] = await Promise.all([getPropriedades(), getServicos()]);
       
-      // Filtramos as propriedades do usuário logado
+      // --- CORREÇÃO DA TRAVA VISUAL ---
+      // Identificamos o ID do agricultor (vulnerabilidade corrigida aqui)
+      const meuId = agricultorLogado?.id || userLogado?.agricultor_id;
+
       const minhasProps = propRes.data.filter(p => 
-        String(p.agricultor_id || p.agricultor?.id) === String(userLogado.agricultor_id || userLogado.id)
+        String(p.agricultor_id || p.agricultor?.id) === String(meuId)
       );
 
-      setPropriedades(minhasProps.length > 0 ? minhasProps : propRes.data);
+      // Se o agricultor não tiver propriedades, a lista deve ficar VAZIA.
+      // Nunca use fallback para propRes.data, pois isso expõe dados de terceiros.
+      setPropriedades(minhasProps); 
       setServicos(servRes.data);
+      
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
     }
-  }, [userLogado]);
+  }, [userLogado, agricultorLogado]);
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
   const handleSubmit = async (values, actions) => {
     try {
-      // ESTRATÉGIA PARA CORRIGIR O ERRO 500:
-      // Em vez de usar userLogado.id (que é 3), vamos pegar o agricultor_id
-      // que já está salvo dentro do objeto da propriedade selecionada.
-      const propriedadeSelecionada = propriedades.find(p => String(p.id) === String(values.propriedadeId));
-      
-      const agricultorIdCorreto = propriedadeSelecionada?.agricultor_id || userLogado.agricultor_id || userLogado.id;
+      // Garantimos que o agricultor_id enviado é realmente o do usuário logado
+      const meuId = agricultorLogado?.id || userLogado?.agricultor_id;
 
       const payload = {
-        agricultor_id: parseInt(agricultorIdCorreto, 10),
+        agricultor_id: parseInt(meuId, 10),
         propriedade_id: parseInt(values.propriedadeId, 10),
         servico_id: parseInt(values.servicoId, 10),
         status: "Pendente",
@@ -69,19 +76,18 @@ export default function DashboardProdutor() {
 
       await createSolicitacao(payload);
       
-      toast({ title: "Solicitação enviada com sucesso!", status: "success", duration: 5000 });
-      actions.setSubmitting(false);
+      toast({ title: "Solicitação enviada!", status: "success", duration: 5000 });
       onClose();
     } catch (error) {
-      // Exibe o detalhe técnico que adicionamos no Python (detalhe_tecnico)
-      const erroBanco = error.response?.data?.detalhe_tecnico || "Erro de vínculo no banco.";
+      const detalhe = error.response?.data?.message || "Erro ao processar vínculo.";
       toast({ 
-        title: "Erro no Banco de Dados", 
-        description: erroBanco, 
+        title: "Ação Negada", 
+        description: detalhe, 
         status: "error", 
-        duration: 10000, 
+        duration: 7000, 
         isClosable: true 
       });
+    } finally {
       actions.setSubmitting(false);
     }
   };
@@ -90,6 +96,8 @@ export default function DashboardProdutor() {
     <Flex direction="column" align="center" justify="center" pt={{ base: "130px", md: "80px" }} minH="80vh">
       <Box maxW="container.lg" textAlign="center">
         <Heading as="h1" size="xl" mb={6} color={textColor}>Olá, {userLogado?.nome}!</Heading>
+        
+        {/* ... (Cards de atalho permanecem iguais) */}
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={10}>
           <Card p={6}>
             <Icon as={MdList} w={12} h={12} mx="auto" color="brand.500" />
@@ -125,19 +133,25 @@ export default function DashboardProdutor() {
                       </FormControl>
                     )}
                   </Field>
+
                   <Field name='propriedadeId'>
                     {({ field, form }) => (
                       <FormControl mt={4} isInvalid={form.errors.propriedadeId && form.touched.propriedadeId}>
                         <FormLabel>Propriedade</FormLabel>
-                        <Select {...field} placeholder="Selecione a propriedade">
+                        <Select {...field} placeholder={propriedades.length > 0 ? "Selecione a propriedade" : "Nenhuma terra cadastrada"}>
                           {propriedades.map(p => <option key={p.id} value={p.id}>{p.terreno}</option>)}
                         </Select>
+                        {propriedades.length === 0 && (
+                          <Text fontSize="xs" color="red.400" mt={1}>Você não possui terras vinculadas ao seu perfil.</Text>
+                        )}
                       </FormControl>
                     )}
                   </Field>
                 </ModalBody>
                 <ModalFooter>
-                  <Button colorScheme='brand' mr={3} isLoading={props.isSubmitting} type='submit'>Enviar</Button>
+                  <Button colorScheme='brand' mr={3} isLoading={props.isSubmitting} type='submit' isDisabled={propriedades.length === 0}>
+                    Enviar
+                  </Button>
                   <Button onClick={onClose}>Cancelar</Button>
                 </ModalFooter>
               </Form>

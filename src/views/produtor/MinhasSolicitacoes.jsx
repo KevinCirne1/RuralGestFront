@@ -19,25 +19,24 @@ export default function MinhasSolicitacoes() {
 
   const { authData } = useAuth();
   const userLogado = authData?.user;
+  const agricultorLogado = authData?.agricultor; 
 
   const fetchPageData = useCallback(async () => {
     if (!userLogado) return;
     setLoading(true);
     try {
-      const solicitacoesRes = await getSolicitacoes();
-      
-      /** * FILTRAGEM CORRIGIDA:
-       * Usamos a mesma lógica do Dashboard: comparamos o ID do agricultor na 
-       * solicitação com o agricultor_id (ou id) do José.
-       */
-      const idBusca = userLogado.agricultor_id || userLogado.id;
+      // Prioriza o ID do agricultor vindo do objeto ou da claim do usuário
+      const idParaBuscar = agricultorLogado?.id || userLogado?.agricultor_id;
 
-      const minhasSolicitacoes = solicitacoesRes.data.filter(sol => {
-        const idNasol = sol.agricultor_id || sol.agricultor?.id;
-        return String(idNasol) === String(idBusca);
-      });
-      
-      // Ordenar por data mais recente primeiro
+      if (!idParaBuscar) {
+        setLoading(false);
+        return;
+      }
+
+      const solicitacoesRes = await getSolicitacoes({ agricultor_id: idParaBuscar });
+      const minhasSolicitacoes = solicitacoesRes.data;
+
+      // Ordena por data de solicitação (mais recente primeiro)
       minhasSolicitacoes.sort((a, b) => new Date(b.data_solicitacao) - new Date(a.data_solicitacao));
       
       setSolicitacoes(minhasSolicitacoes);
@@ -46,25 +45,24 @@ export default function MinhasSolicitacoes() {
       console.error("Erro ao buscar solicitações:", error);
       toast({ 
         title: "Erro ao buscar solicitações.", 
-        description: "Verifique sua conexão com o servidor.",
-        status: "error", 
-        duration: 5000, 
-        isClosable: true 
+        status: "error", duration: 5000, isClosable: true 
       });
     } finally {
       setLoading(false);
     }
-  }, [userLogado, toast]);
+  }, [authData, agricultorLogado, userLogado, toast]);
 
   useEffect(() => {
     fetchPageData();
   }, [fetchPageData]);
 
+  // Auxiliar para formatar a data no padrão brasileiro
   const formatDate = (dateString) => {
     if (!dateString) return "---";
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
   
+  // Define o estilo visual do Badge baseado no status
   const getStatusBadge = (status) => {
     if (!status) return <Badge>N/A</Badge>;
     const statusUpper = status.toUpperCase();
@@ -78,8 +76,10 @@ export default function MinhasSolicitacoes() {
         return <Badge colorScheme='red' variant="subtle"> {statusUpper} </Badge>;
       case 'PENDENTE':
         return <Badge colorScheme='yellow' variant="subtle"> {statusUpper} </Badge>;
-      default:
+      case 'EM ANDAMENTO':
         return <Badge colorScheme='blue' variant="subtle"> {statusUpper} </Badge>;
+      default:
+        return <Badge colorScheme='gray' variant="subtle"> {statusUpper} </Badge>;
     }
   };
 
@@ -104,7 +104,7 @@ export default function MinhasSolicitacoes() {
               <Tr>
                 <Th borderColor={borderColor}>Serviço</Th>
                 <Th borderColor={borderColor}>Data Solicitação</Th>
-                <Th borderColor={borderColor}>Previsão Execução</Th>
+                <Th borderColor={borderColor}>Data Execução</Th>
                 <Th borderColor={borderColor}>Status</Th>
               </Tr>
             </Thead>
@@ -112,9 +112,10 @@ export default function MinhasSolicitacoes() {
               {solicitacoes.map((sol) => (
                 <Tr key={sol.id}>
                   <Td fontWeight="700" color={textColor}>
-                    {sol.servico?.nome_servico || 'Serviço Geral'}
+                    {sol.servico?.nome_servico || sol.servico_nome || 'Serviço Geral'}
                   </Td>
                   <Td>{formatDate(sol.data_solicitacao)}</Td>
+                  {/* Campo que será preenchido após o Admin concluir o serviço */}
                   <Td>{formatDate(sol.data_execucao)}</Td>
                   <Td>{getStatusBadge(sol.status)}</Td>
                 </Tr>
@@ -126,7 +127,7 @@ export default function MinhasSolicitacoes() {
         {solicitacoes.length === 0 && (
           <Flex direction="column" align="center" mt={10}>
             <Text color="gray.400" fontSize="lg">Nenhum pedido encontrado.</Text>
-            <Text color="gray.400" fontSize="sm">Suas novas solicitações aparecerão aqui.</Text>
+            <Text color="gray.400" fontSize="sm">Suas novas solicitações aparecerão aqui após o cadastro.</Text>
           </Flex>
         )}
       </Card>

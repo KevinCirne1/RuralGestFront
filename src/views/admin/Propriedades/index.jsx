@@ -3,26 +3,23 @@ import {
   Box, Flex, Button, Icon, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
   FormControl, FormLabel, Input, useDisclosure, FormErrorMessage, Spinner, useToast, Select,
-  IconButton, Tooltip, Divider, InputGroup, InputLeftElement
+  IconButton, Tooltip, Divider, InputGroup, InputLeftElement, InputRightElement, FormHelperText
 } from "@chakra-ui/react";
-// Adicionei MdMap e MdSearch nos ícones
-import { MdEdit, MdDelete, MdAgriculture, MdMap, MdSearch } from "react-icons/md"; 
+import { MdEdit, MdDelete, MdAgriculture, MdMap, MdSearch, MdMyLocation } from "react-icons/md"; 
 import Card from "components/card/Card.js";
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import { getAgricultores } from "services/agricultorService";
 import { getPropriedades, createPropriedade, updatePropriedade, deletePropriedade } from "services/propriedadeService";
+import { formatarCoordenadas, limparCoordenadas } from "utils/formatters";
 
 const SignupSchema = Yup.object().shape({
-  // Campos Obrigatórios
   terreno: Yup.string().required('O nome da propriedade é obrigatório'),
   tipo_agricultura: Yup.string().required('O tipo de agricultura é obrigatório'),
   area_total: Yup.number().required('A área total é obrigatória'),
   area_exploravel: Yup.number().required('A área explorável é obrigatória'),
   coordenadas_geograficas: Yup.string().required('As coordenadas são obrigatórias'),
   agricultor_id: Yup.string().required('É preciso selecionar um agricultor'),
-  
-  // Campos Opcionais
   cultura_principal: Yup.string().nullable(),
   quantidade_gado: Yup.number().min(0, 'Valor positivo').nullable()
 });
@@ -31,8 +28,6 @@ export default function PropriedadesPage() {
   const [propriedades, setPropriedades] = useState([]);
   const [agricultores, setAgricultores] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // --- NOVO ESTADO PARA A BUSCA ---
   const [busca, setBusca] = useState("");
 
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
@@ -54,7 +49,7 @@ export default function PropriedadesPage() {
       setPropriedades(propriedadesResponse.data);
       setAgricultores(agricultoresResponse.data);
     } catch (error) {
-      toast({ title: "Erro ao buscar dados.", description: "Verifique a conexão com a API.", status: "error", duration: 5000, isClosable: true });
+      toast({ title: "Erro ao buscar dados.", status: "error", duration: 5000 });
     } finally {
       setLoading(false);
     }
@@ -64,16 +59,31 @@ export default function PropriedadesPage() {
     fetchData();
   }, [fetchData]);
 
-  // --- FUNÇÃO PARA ABRIR O MAPA ---
-  const handleOpenMap = (coords) => {
-    if (!coords) {
-        toast({ title: "Sem coordenadas", status: "warning", duration: 2000 });
-        return;
+  // Captura localização GPS via Browser
+  const handleGetLocation = (form) => {
+    if (!navigator.geolocation) {
+      toast({ title: "Geolocalização não suportada no seu navegador.", status: "error" });
+      return;
     }
-    // Remove espaços em branco para garantir que a URL fique certa
-    const cleanCoords = coords.replace(/\s/g, '');
-    // Abre o Google Maps em nova aba
-    window.open(`https://www.google.com/maps?q=${cleanCoords}`, '_blank');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        // Formata para 6 casas decimais (precisão ideal para agricultura)
+        const coords = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        form.setFieldValue('coordenadas_geograficas', coords);
+        toast({ title: "Localização capturada com sucesso!", status: "success", duration: 2000 });
+      },
+      () => {
+        toast({ title: "Não foi possível obter sua localização.", status: "warning" });
+      }
+    );
+  };
+
+  const handleOpenMap = (coords) => {
+    if (!coords) return;
+    const cleanCoords = limparCoordenadas(coords);
+    window.open(`https://www.google.com/maps/search/?api=1&query=${cleanCoords}`, '_blank');
   };
 
   const handleOpenForm = (propriedade = null) => {
@@ -85,48 +95,44 @@ export default function PropriedadesPage() {
     try {
       const { agricultor_id, ...dadosPropriedade } = values;
 
+      // Limpa as coordenadas antes de enviar para o banco
       const payload = {
           ...dadosPropriedade,
+          coordenadas_geograficas: limparCoordenadas(values.coordenadas_geograficas),
           quantidade_gado: values.quantidade_gado || 0,
           cultura_principal: values.cultura_principal || 'Outros'
       };
 
       if (propriedadeSelecionada) {
-        await updatePropriedade(propriedadeSelecionada.id, values); 
-        toast({ title: "Propriedade atualizada!", status: "success", duration: 5000, isClosable: true });
+        await updatePropriedade(propriedadeSelecionada.id, payload); 
+        toast({ title: "Propriedade atualizada!", status: "success" });
       } else {
         await createPropriedade(agricultor_id, payload);
-        toast({ title: "Propriedade cadastrada!", status: "success", duration: 5000, isClosable: true });
+        toast({ title: "Propriedade cadastrada!", status: "success" });
       }
       
-      actions.setSubmitting(false);
       onFormClose();
       fetchData();
     } catch (error) {
-      toast({ title: "Erro na operação.", description: error.message, status: "error", duration: 5000, isClosable: true });
+      toast({ title: "Erro na operação.", status: "error" });
+    } finally {
       actions.setSubmitting(false);
     }
   };
 
-  const handleAbrirModalExclusao = (propriedade) => {
-    setPropriedadeParaDeletar(propriedade);
-    onDeleteOpen();
-  };
-
   const handleConfirmarExclusao = async () => {
-    if (!propriedadeParaDeletar) return;
     try {
       await deletePropriedade(propriedadeParaDeletar.id);
-      toast({ title: 'Sucesso!', description: `Propriedade excluída.`, status: 'success', duration: 3000, isClosable: true });
+      toast({ title: 'Sucesso!', status: 'success' });
       onDeleteClose();
       fetchData();
     } catch (error) {
-      toast({ title: 'Erro ao excluir.', description: 'Não foi possível remover a propriedade.', status: 'error', duration: 5000, isClosable: true });
+      toast({ title: 'Erro ao excluir.', status: 'error' });
       onDeleteClose();
     }
   };
 
-  if (loading) return (<Flex justify='center' align='center' height='50vh'><Spinner size='xl' /></Flex>);
+  if (loading) return (<Flex justify='center' align='center' height='50vh'><Spinner size='xl' color="brand.500" /></Flex>);
 
   return (
     <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
@@ -136,11 +142,8 @@ export default function PropriedadesPage() {
           <Button colorScheme='brand' onClick={() => handleOpenForm()}>Cadastrar Propriedade</Button>
         </Flex>
         
-        {/* --- BARRA DE PESQUISA (NOVA) --- */}
         <InputGroup mb="20px">
-            <InputLeftElement pointerEvents='none'>
-                <Icon as={MdSearch} color='gray.300' />
-            </InputLeftElement>
+            <InputLeftElement pointerEvents='none'><Icon as={MdSearch} color='gray.300' /></InputLeftElement>
             <Input 
                 placeholder="Buscar por nome da propriedade..." 
                 value={busca}
@@ -162,7 +165,6 @@ export default function PropriedadesPage() {
             </Tr>
           </Thead>
           <Tbody>
-            {/* --- FILTRAGEM DOS DADOS ANTES DE EXIBIR --- */}
             {propriedades
                 .filter(p => p.terreno.toLowerCase().includes(busca.toLowerCase()))
                 .map((prop) => {
@@ -174,51 +176,34 @@ export default function PropriedadesPage() {
                       <Td>{prop.tipo_agricultura}</Td>
                       <Td>{prop.area_total}</Td>
                       <Td>{prop.area_exploravel}</Td>
-                      <Td>{prop.coordenadas_geograficas}</Td>
+                      {/* FORMATAÇÃO IDEAL NA TABELA */}
+                      <Td fontWeight="medium" color="brand.500">
+                        {formatarCoordenadas(prop.coordenadas_geograficas)}
+                      </Td>
                       <Td>
                         <Flex gap="5px">
-                          {/* --- BOTÃO DO GOOGLE MAPS (NOVO) --- */}
-                          <Tooltip label="Ver no Google Maps">
-                            <IconButton 
-                                size='sm' 
-                                colorScheme='blue' 
-                                icon={<MdMap />} 
-                                onClick={() => handleOpenMap(prop.coordenadas_geograficas)} 
-                            />
+                          <Tooltip label="Ver no Mapa">
+                            <IconButton size='sm' colorScheme='blue' icon={<MdMap />} onClick={() => handleOpenMap(prop.coordenadas_geograficas)} />
                           </Tooltip>
-
-                          <Tooltip label="Editar Propriedade">
+                          <Tooltip label="Editar">
                             <IconButton size='sm' colorScheme='brand' icon={<MdEdit />} onClick={() => handleOpenForm(prop)} />
                           </Tooltip>
-                          <Tooltip label="Excluir Propriedade">
-                            <IconButton size='sm' colorScheme='red' icon={<MdDelete />} onClick={() => handleAbrirModalExclusao(prop)} />
+                          <Tooltip label="Excluir">
+                            <IconButton size='sm' colorScheme='red' icon={<MdDelete />} onClick={() => { setPropriedadeParaDeletar(prop); onDeleteOpen(); }} />
                           </Tooltip>
                         </Flex>
                       </Td>
                     </Tr>
                   );
             })}
-            
-            {/* Mensagem caso não encontre nada na busca */}
-            {propriedades.filter(p => p.terreno.toLowerCase().includes(busca.toLowerCase())).length === 0 && (
-                <Tr>
-                    <Td colSpan={7} textAlign="center" py="4" color="gray.500">
-                        Nenhuma propriedade encontrada.
-                    </Td>
-                </Tr>
-            )}
           </Tbody>
         </Table>
       </Card>
 
       <Formik 
         initialValues={propriedadeSelecionada ? {
-          terreno: propriedadeSelecionada.terreno,
-          tipo_agricultura: propriedadeSelecionada.tipo_agricultura,
-          area_total: propriedadeSelecionada.area_total,
-          area_exploravel: propriedadeSelecionada.area_exploravel,
-          coordenadas_geograficas: propriedadeSelecionada.coordenadas_geograficas,
-          agricultor_id: propriedadeSelecionada.agricultor_id,
+          ...propriedadeSelecionada,
+          coordenadas_geograficas: formatarCoordenadas(propriedadeSelecionada.coordenadas_geograficas),
           cultura_principal: propriedadeSelecionada.cultura_principal || '',
           quantidade_gado: propriedadeSelecionada.quantidade_gado || 0
         } : { 
@@ -229,15 +214,15 @@ export default function PropriedadesPage() {
         onSubmit={handleSubmit}
         enableReinitialize
       >
-        {(props) => (
+        {(formikProps) => (
           <Modal isOpen={isFormOpen} onClose={onFormClose} size="xl">
             <ModalOverlay /><ModalContent>
               <Form>
-                <ModalHeader>{propriedadeSelecionada ? "Editar Propriedade" : "Cadastrar Nova Propriedade"}</ModalHeader><ModalCloseButton />
+                <ModalHeader>{propriedadeSelecionada ? "Editar Propriedade" : "Cadastrar Nova Propriedade"}</ModalHeader>
+                <ModalCloseButton />
                 <ModalBody>
-                  {/* Campos do Formulário (Dados Gerais) */}
                   <Flex gap="4">
-                    <Field name='terreno'>{({ field, form }) => (<FormControl isInvalid={form.errors.terreno && form.touched.terreno} mb={4}><FormLabel>Nome da Propriedade</FormLabel><Input {...field} /><FormErrorMessage>{form.errors.terreno}</FormErrorMessage></FormControl>)}</Field>
+                    <Field name='terreno'>{({ field, form }) => (<FormControl isInvalid={form.errors.terreno && form.touched.terreno} mb={4}><FormLabel>Nome da Propriedade</FormLabel><Input {...field} placeholder="Ex: Sítio Bahamas" /><FormErrorMessage>{form.errors.terreno}</FormErrorMessage></FormControl>)}</Field>
                     <Field name='agricultor_id'>{({ field, form }) => (
                       <FormControl isInvalid={form.errors.agricultor_id && form.touched.agricultor_id} mb={4}>
                         <FormLabel>Agricultor Responsável</FormLabel>
@@ -254,27 +239,52 @@ export default function PropriedadesPage() {
 
                   <Field name='tipo_agricultura'>{({ field, form }) => (<FormControl isInvalid={form.errors.tipo_agricultura && form.touched.tipo_agricultura} mb={4}><FormLabel>Tipo de Solo / Agricultura</FormLabel><Input {...field} placeholder="Ex: Solo Arenoso, Misto..." /><FormErrorMessage>{form.errors.tipo_agricultura}</FormErrorMessage></FormControl>)}</Field>
 
-                  <Field name='coordenadas_geograficas'>{({ field, form }) => (<FormControl isInvalid={form.errors.coordenadas_geograficas && form.touched.coordenadas_geograficas} mb={4}><FormLabel>Coordenadas Geográficas</FormLabel><Input {...field} placeholder="-7.123, -35.567" /><FormErrorMessage>{form.errors.coordenadas_geograficas}</FormErrorMessage></FormControl>)}</Field>
+                  {/* CAMPO DE COORDENADAS COM GPS */}
+                  <Field name='coordenadas_geograficas'>
+                    {({ field, form }) => (
+                      <FormControl isInvalid={form.errors.coordenadas_geograficas && form.touched.coordenadas_geograficas} mb={4}>
+                        <FormLabel>Coordenadas (Latitude, Longitude)</FormLabel>
+                        <InputGroup>
+                          <Input 
+                            {...field} 
+                            placeholder="-6.7551, -35.6602" 
+                            onChange={(e) => {
+                              // Permite apenas números, pontos, vírgulas, sinais de menos e espaços
+                              const val = e.target.value.replace(/[^\d.,\-\s]/g, "");
+                              form.setFieldValue('coordenadas_geograficas', val);
+                            }}
+                          />
+                          <InputRightElement width="3rem">
+                            <Tooltip label="Minha localização atual">
+                              <IconButton 
+                                h="1.75rem" 
+                                size="sm" 
+                                variant="ghost" 
+                                colorScheme="brand" 
+                                icon={<MdMyLocation />} 
+                                onClick={() => handleGetLocation(form)} 
+                              />
+                            </Tooltip>
+                          </InputRightElement>
+                        </InputGroup>
+                        <FormHelperText fontSize="xs">Ex: -6.7511, -35.6601</FormHelperText>
+                        <FormErrorMessage>{form.errors.coordenadas_geograficas}</FormErrorMessage>
+                      </FormControl>
+                    )}
+                  </Field>
 
                   <Divider my="20px" borderColor={borderColor} />
-                  
-                  {/* Dados de Produção */}
-                  <Flex align="center" gap="2" mb="15px">
-                     <Icon as={MdAgriculture} color="brand.500" />
-                     <Text fontSize="sm" fontWeight="bold" color="brand.500">DADOS DE PRODUÇÃO (PARA O DASHBOARD)</Text>
-                  </Flex>
+                  <Flex align="center" gap="2" mb="15px"><Icon as={MdAgriculture} color="brand.500" /><Text fontSize="sm" fontWeight="bold" color="brand.500">DADOS DE PRODUÇÃO</Text></Flex>
 
                   <Flex gap="4">
                     <Field name='cultura_principal'>{({ field, form }) => (
-                        <FormControl isInvalid={form.errors.cultura_principal && form.touched.cultura_principal} mb={4}>
-                            <FormLabel>O que se cultiva aqui?</FormLabel>
-                            <Select {...field} placeholder="Selecione a cultura principal...">
+                        <FormControl mb={4}>
+                            <FormLabel>Cultura Principal</FormLabel>
+                            <Select {...field} placeholder="Selecione...">
                                 <option value="Milho">Milho</option>
                                 <option value="Feijão">Feijão</option>
                                 <option value="Mandioca">Mandioca</option>
-                                <option value="Algodão">Algodão</option>
                                 <option value="Fruticultura">Fruticultura</option>
-                                <option value="Hortaliças">Hortaliças</option>
                                 <option value="Pasto/Pecuária">Apenas Pasto</option>
                                 <option value="Outros">Outros</option>
                             </Select>
@@ -282,16 +292,15 @@ export default function PropriedadesPage() {
                     )}</Field>
 
                     <Field name='quantidade_gado'>{({ field, form }) => (
-                        <FormControl isInvalid={form.errors.quantidade_gado && form.touched.quantidade_gado} mb={4}>
-                            <FormLabel>Possui gado? (Qtd.)</FormLabel>
-                            <Input {...field} type="number" placeholder="0 se não tiver" />
+                        <FormControl mb={4}>
+                            <FormLabel>Quantidade de Gado</FormLabel>
+                            <Input {...field} type="number" />
                         </FormControl>
                     )}</Field>
                   </Flex>
-
                 </ModalBody>
                 <ModalFooter>
-                  <Button colorScheme='brand' mr={3} isLoading={props.isSubmitting} type='submit'>Salvar</Button>
+                  <Button colorScheme='brand' mr={3} isLoading={formikProps.isSubmitting} type='submit'>Salvar</Button>
                   <Button variant='ghost' onClick={onFormClose}>Cancelar</Button>
                 </ModalFooter>
               </Form>
@@ -300,10 +309,11 @@ export default function PropriedadesPage() {
         )}
       </Formik>
 
+      {/* Modal Exclusão */}
       <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
         <ModalOverlay /><ModalContent>
           <ModalHeader>Confirmar Exclusão</ModalHeader><ModalCloseButton />
-          <ModalBody>Você tem certeza que deseja excluir a propriedade <strong>{propriedadeParaDeletar?.terreno}</strong>?</ModalBody>
+          <ModalBody>Deseja excluir a propriedade <strong>{propriedadeParaDeletar?.terreno}</strong>?</ModalBody>
           <ModalFooter>
             <Button variant="ghost" mr={3} onClick={onDeleteClose}>Cancelar</Button>
             <Button colorScheme="red" onClick={handleConfirmarExclusao}>Excluir</Button>

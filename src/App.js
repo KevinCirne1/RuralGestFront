@@ -1,5 +1,3 @@
-// src/layouts/produtor/index.js
-
 import React, { useState } from "react";
 import { Portal, Box, useDisclosure } from "@chakra-ui/react";
 import Footer from "components/footer/FooterAdmin.js";
@@ -10,22 +8,34 @@ import { SidebarContext } from "contexts/SidebarContext";
 import { Routes, Route, Navigate } from "react-router-dom";
 import routes from "routes.js";
 
-// Estilos
+// Importando o contexto para verificar o perfil
+import { useAuth } from "contexts/AuthContext";
+
 export default function ProdutorLayout(props) {
   const { ...rest } = props;
   
-  // Estados para abrir/fechar sidebar no mobile
+  // Estados para controle do layout
   const [fixed] = useState(false);
   const [toggleSidebar, setToggleSidebar] = useState(false);
-  
-  // Funções do Chakra UI
   const { onOpen } = useDisclosure();
 
-  // --- O SEGREDO ESTÁ AQUI: Filtrar apenas rotas de /produtor ---
+  // 1. RECUPERA O PERFIL DO USUÁRIO LOGADO
+  const { authData } = useAuth();
+  // Converte para minúsculo para bater com 'agricultor' ou 'produtor' do routes.js
+  const userProfile = authData?.user?.perfil?.toLowerCase(); 
+
+  // --- LÓGICA DE ROTAS (Backbone do Layout) ---
   const getRoutes = (routes) => {
     return routes.map((prop, key) => {
-      // Só renderiza se o layout for '/produtor'
+      // Verifica se a rota pertence a este layout
       if (prop.layout === "/produtor") {
+        
+        // TRAVA DE SEGURANÇA EXTRA:
+        // Se a rota tem 'roles' definidos, verifica se o usuário pode acessar.
+        if (prop.roles && !prop.roles.includes(userProfile)) {
+            return null;
+        }
+
         return (
           <Route path={`/${prop.path}`} element={<prop.component />} key={key} />
         );
@@ -34,7 +44,6 @@ export default function ProdutorLayout(props) {
     });
   };
 
-  // Título da página dinâmica (opcional)
   const getActiveRoute = (routes) => {
     let activeRoute = "Painel do Produtor";
     for (let i = 0; i < routes.length; i++) {
@@ -45,7 +54,6 @@ export default function ProdutorLayout(props) {
     return activeRoute;
   };
 
-  // Texto da Navbar
   const getActiveNavbarText = (routes) => {
     let activeNavbar = false;
     for (let i = 0; i < routes.length; i++) {
@@ -56,8 +64,12 @@ export default function ProdutorLayout(props) {
     return activeNavbar;
   };
 
-  // Filtrar rotas para a Sidebar (para não aparecer menu de admin)
-  const produtorRoutes = routes.filter(r => r.layout === "/produtor");
+  // 2. FILTRO DO SIDEBAR
+  // Filtra apenas rotas do layout /produtor E que o usuário tenha permissão
+  const produtorRoutes = routes.filter(r => 
+      r.layout === "/produtor" && 
+      (!r.roles || r.roles.includes(userProfile))
+  );
 
   return (
     <Box>
@@ -67,7 +79,7 @@ export default function ProdutorLayout(props) {
           setToggleSidebar,
         }}>
         
-        {/* SIDEBAR COM ROTAS FILTRADAS */}
+        {/* Passamos apenas as rotas filtradas para o Sidebar */}
         <Sidebar routes={produtorRoutes} display='none' {...rest} />
         
         <Box
@@ -88,7 +100,7 @@ export default function ProdutorLayout(props) {
             <Box>
               <Navbar
                 onOpen={onOpen}
-                logoText={"RuralGest Produtor"}
+                logoText={"RuralGest"}
                 brandText={getActiveRoute(routes)}
                 secondary={getActiveNavbarText(routes)}
                 message={getActiveNavbarText(routes)}
@@ -98,11 +110,10 @@ export default function ProdutorLayout(props) {
             </Box>
           </Portal>
 
-          {/* CONTEÚDO DA PÁGINA */}
           <Box mx='auto' p={{ base: "20px", md: "30px" }} pe='20px' minH='100vh' pt='50px'>
             <Routes>
               {getRoutes(routes)}
-              {/* Se tentar acessar /produtor puro, joga para dashboard */}
+              {/* Redirecionamento padrão: Se acessar /produtor, vai para dashboard */}
               <Route path="/" element={<Navigate to="/produtor/dashboard" replace />} />
             </Routes>
           </Box>

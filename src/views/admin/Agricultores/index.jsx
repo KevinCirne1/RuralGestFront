@@ -10,12 +10,11 @@ import Card from "components/card/Card.js";
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import { getAgricultores, createAgricultor, updateAgricultor, deleteAgricultor } from "services/agricultorService";
+import { formatarCPF, formatarTelefone, apenasNumeros } from "utils/formatters";
 
 export default function AgricultoresPage() {
   const [agricultores, setAgricultores] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // --- ESTADO DA BUSCA ---
   const [busca, setBusca] = useState("");
 
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
@@ -27,18 +26,13 @@ export default function AgricultoresPage() {
   const borderColor = useColorModeValue("gray.200", "whiteAlpha.100");
   const toast = useToast();
 
-  // --- VALIDAÇÃO DINÂMICA (CORRIGIDA) ---
-  // Substituímos o .when() por um ternário simples para evitar erro de versão do Yup
   const AgricultorSchema = Yup.object().shape({
     nome: Yup.string().required('Nome é obrigatório'),
-    cpf: Yup.string().required('CPF é obrigatório'),
+    cpf: Yup.string().required('CPF é obrigatório').min(14, 'CPF incompleto'),
     comunidade: Yup.string().required('Comunidade é obrigatória'),
-    contato: Yup.string().required('Contato é obrigatório'),
-    
-    // Se NÃO tem agricultor selecionado (null), estamos criando -> Senha Obrigatória
-    // Se TEM agricultor selecionado (objeto), estamos editando -> Senha Opcional
+    contato: Yup.string().required('Contato é obrigatório').min(14, 'Telefone incompleto'),
     senha: !agricultorSelecionado 
-        ? Yup.string().required('Defina uma senha para o acesso do produtor')
+        ? Yup.string().required('Defina uma senha para o acesso do produtor').min(6, 'Mínimo 6 caracteres')
         : Yup.string().nullable()
   });
 
@@ -48,7 +42,7 @@ export default function AgricultoresPage() {
       const response = await getAgricultores();
       setAgricultores(response.data);
     } catch (error) {
-      toast({ title: "Erro ao buscar dados.", status: "error", duration: 5000, isClosable: true });
+      toast({ title: "Erro ao buscar dados.", status: "error", duration: 5000 });
     } finally {
       setLoading(false);
     }
@@ -65,54 +59,44 @@ export default function AgricultoresPage() {
 
   const handleSubmit = async (values, actions) => {
     try {
+      // --- LIMPEZA DOS DADOS PARA O BANCO ---
+      const payload = {
+        ...values,
+        cpf: apenasNumeros(values.cpf),
+        contato: apenasNumeros(values.contato)
+      };
+
       if (agricultorSelecionado) {
-        // Na edição, removemos a senha do objeto para não enviar vazia
-        // (A menos que você queira implementar troca de senha na edição futuramente)
-        const { senha, ...dadosParaAtualizar } = values; 
+        const { senha, ...dadosParaAtualizar } = payload; 
         await updateAgricultor(agricultorSelecionado.id, dadosParaAtualizar); 
-        toast({ title: "Agricultor atualizado!", status: "success", duration: 5000, isClosable: true });
+        toast({ title: "Agricultor atualizado!", status: "success" });
       } else {
-        // Na criação, mandamos tudo (incluindo a senha)
-        await createAgricultor(values);
+        await createAgricultor(payload);
         toast({ 
-            title: "Agricultor e Usuário criados!", 
-            description: `Login: ${values.cpf} (ou email) | Senha: Definida no cadastro`,
+            title: "Cadastro realizado!", 
+            description: `Login criado com o CPF informado.`,
             status: "success", 
-            duration: 6000, 
-            isClosable: true 
+            duration: 6000
         });
       }
       onFormClose();
       fetchData();
     } catch (error) {
-      console.error(error);
-      const msgErro = error.response?.data?.message || "Erro desconhecido";
-      toast({ 
-        title: "Erro na operação.", 
-        description: msgErro, 
-        status: "error", 
-        duration: 5000, 
-        isClosable: true 
-      });
+      const msgErro = error.response?.data?.message || "Erro na operação.";
+      toast({ title: "Erro", description: msgErro, status: "error" });
     } finally {
         actions.setSubmitting(false);
     }
   };
 
-  const handleAbrirModalExclusao = (agricultor) => {
-    setAgricultorParaDeletar(agricultor);
-    onDeleteOpen();
-  };
-
   const handleConfirmarExclusao = async () => {
-    if (!agricultorParaDeletar) return;
     try {
       await deleteAgricultor(agricultorParaDeletar.id);
-      toast({ title: 'Sucesso!', description: `Agricultor e acesso removidos.`, status: 'success', duration: 3000, isClosable: true });
+      toast({ title: 'Sucesso!', status: 'success' });
       onDeleteClose();
       fetchData();
     } catch (error) {
-      toast({ title: 'Erro ao excluir.', description: 'Verifique se ele possui propriedades vinculadas.', status: 'error', duration: 5000, isClosable: true });
+      toast({ title: 'Erro ao excluir.', status: 'error' });
       onDeleteClose();
     }
   };
@@ -127,11 +111,8 @@ export default function AgricultoresPage() {
           <Button leftIcon={<MdPersonAdd />} colorScheme='brand' onClick={() => handleOpenForm()}>Novo Agricultor</Button>
         </Flex>
         
-        {/* --- BARRA DE PESQUISA --- */}
         <InputGroup mb="20px">
-            <InputLeftElement pointerEvents='none'>
-                <Icon as={MdSearch} color='gray.300' />
-            </InputLeftElement>
+            <InputLeftElement pointerEvents='none'><Icon as={MdSearch} color='gray.300' /></InputLeftElement>
             <Input 
                 placeholder="Buscar por Nome, CPF ou Comunidade..." 
                 value={busca}
@@ -163,57 +144,47 @@ export default function AgricultoresPage() {
                 .map((ag) => (
                     <Tr key={ag.id}>
                       <Td fontWeight="bold" color={textColor} borderColor={borderColor}>{ag.nome}</Td>
-                      <Td borderColor={borderColor}>{ag.cpf}</Td>
+                      {/* FORMATAÇÃO NA TABELA */}
+                      <Td borderColor={borderColor}>{formatarCPF(ag.cpf)}</Td>
                       <Td borderColor={borderColor}>{ag.comunidade}</Td>
-                      <Td borderColor={borderColor}>{ag.contato}</Td>
+                      <Td borderColor={borderColor}>{formatarTelefone(ag.contato)}</Td>
                       <Td borderColor={borderColor}>
                         <Flex gap="5px">
                           <Tooltip label="Editar">
-                            <IconButton 
-                                size='sm' 
-                                colorScheme='brand' 
-                                icon={<MdEdit />} 
-                                isRound 
-                                onClick={() => handleOpenForm(ag)} 
-                            />
+                            <IconButton size='sm' colorScheme='brand' icon={<MdEdit />} isRound onClick={() => handleOpenForm(ag)} />
                           </Tooltip>
                           <Tooltip label="Excluir">
-                            <IconButton 
-                                size='sm' 
-                                colorScheme='red' 
-                                icon={<MdDelete />} 
-                                isRound 
-                                onClick={() => handleAbrirModalExclusao(ag)} 
-                            />
+                            <IconButton size='sm' colorScheme='red' icon={<MdDelete />} isRound onClick={() => { setAgricultorParaDeletar(ag); onDeleteOpen(); }} />
                           </Tooltip>
                         </Flex>
                       </Td>
                     </Tr>
             ))}
-
-            {agricultores.length > 0 && agricultores.filter(ag => ag.nome.toLowerCase().includes(busca.toLowerCase()) || (ag.cpf && ag.cpf.includes(busca))).length === 0 && (
-                <Tr>
-                    <Td colSpan={5} textAlign="center" py="4" color="gray.500">
-                        Nenhum agricultor encontrado para "{busca}".
-                    </Td>
-                </Tr>
-            )}
           </Tbody>
         </Table>
       </Card>
 
-      {/* Formulário (Modal) */}
+      {/* Modal do Formulário */}
       <Formik 
-        initialValues={agricultorSelecionado || { nome: '', cpf: '', comunidade: '', contato: '', senha: '' }} 
+        initialValues={
+          agricultorSelecionado 
+          ? { 
+              ...agricultorSelecionado, 
+              cpf: formatarCPF(agricultorSelecionado.cpf), 
+              contato: formatarTelefone(agricultorSelecionado.contato) 
+            } 
+          : { nome: '', cpf: '', comunidade: '', contato: '', senha: '' }
+        } 
         validationSchema={AgricultorSchema} 
         onSubmit={handleSubmit}
         enableReinitialize
       >
-        {(props) => (
+        {(formikProps) => (
           <Modal isOpen={isFormOpen} onClose={onFormClose} size="lg">
             <ModalOverlay /><ModalContent>
               <Form>
-                <ModalHeader>{agricultorSelecionado ? "Editar Agricultor" : "Cadastrar Agricultor e Acesso"}</ModalHeader><ModalCloseButton />
+                <ModalHeader>{agricultorSelecionado ? "Editar Agricultor" : "Cadastrar Agricultor"}</ModalHeader>
+                <ModalCloseButton />
                 <ModalBody>
                   <Field name='nome'>
                       {({ field, form }) => (
@@ -230,7 +201,11 @@ export default function AgricultoresPage() {
                           {({ field, form }) => (
                               <FormControl isInvalid={form.errors.cpf && form.touched.cpf} mb={4}>
                                   <FormLabel>CPF (Usuário)</FormLabel>
-                                  <Input {...field} placeholder="000.000.000-00" />
+                                  <Input 
+                                    {...field} 
+                                    placeholder="000.000.000-00" 
+                                    onChange={(e) => form.setFieldValue('cpf', formatarCPF(e.target.value))}
+                                  />
                                   <FormErrorMessage>{form.errors.cpf}</FormErrorMessage>
                               </FormControl>
                           )}
@@ -239,7 +214,11 @@ export default function AgricultoresPage() {
                           {({ field, form }) => (
                               <FormControl isInvalid={form.errors.contato && form.touched.contato} mb={4}>
                                   <FormLabel>Contato / Celular</FormLabel>
-                                  <Input {...field} placeholder="(83) 99999-9999" />
+                                  <Input 
+                                    {...field} 
+                                    placeholder="(83) 99999-9999" 
+                                    onChange={(e) => form.setFieldValue('contato', formatarTelefone(e.target.value))}
+                                  />
                                   <FormErrorMessage>{form.errors.contato}</FormErrorMessage>
                               </FormControl>
                           )}
@@ -256,28 +235,21 @@ export default function AgricultoresPage() {
                       )}
                   </Field>
 
-                  {/* CAMPO DE SENHA (SÓ NA CRIAÇÃO) */}
                   {!agricultorSelecionado && (
                       <Field name='senha'>
                           {({ field, form }) => (
                               <FormControl isInvalid={form.errors.senha && form.touched.senha} mb={4}>
-                                  <FormLabel fontWeight="bold" color="brand.500">Senha de Acesso ao Sistema</FormLabel>
+                                  <FormLabel fontWeight="bold" color="brand.500">Senha de Acesso</FormLabel>
                                   <Input {...field} type="password" placeholder="Digite uma senha..." />
-                                  <FormHelperText>
-                                      Esta senha será usada pelo agricultor para logar.
-                                  </FormHelperText>
                                   <FormErrorMessage>{form.errors.senha}</FormErrorMessage>
                               </FormControl>
                           )}
                       </Field>
                   )}
-
                 </ModalBody>
                 <ModalFooter>
                   <Button variant='ghost' mr={3} onClick={onFormClose}>Cancelar</Button>
-                  <Button colorScheme='brand' isLoading={props.isSubmitting} type='submit'>
-                      {agricultorSelecionado ? "Atualizar Dados" : "Salvar Cadastro"}
-                  </Button>
+                  <Button colorScheme='brand' isLoading={formikProps.isSubmitting} type='submit'>Salvar</Button>
                 </ModalFooter>
               </Form>
             </ModalContent>
@@ -291,13 +263,10 @@ export default function AgricultoresPage() {
           <ModalHeader>Confirmar Exclusão</ModalHeader><ModalCloseButton />
           <ModalBody>
             Tem certeza que deseja remover <strong>{agricultorParaDeletar?.nome}</strong>?
-            <Text fontSize="sm" color="red.500" mt={2}>
-                Isso apagará os dados pessoais e o login de acesso dele.
-            </Text>
           </ModalBody>
           <ModalFooter>
             <Button variant="ghost" mr={3} onClick={onDeleteClose}>Cancelar</Button>
-            <Button colorScheme="red" onClick={handleConfirmarExclusao}>Excluir Definitivamente</Button>
+            <Button colorScheme="red" onClick={handleConfirmarExclusao}>Excluir</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

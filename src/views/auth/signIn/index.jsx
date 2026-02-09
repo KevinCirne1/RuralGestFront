@@ -82,6 +82,10 @@ function SignIn() {
         return <Navigate to="/produtor/dashboard" replace />;
     }
     
+    if (perfil === 'tecnico' || perfil === 'operador') {
+        return <Navigate to="/admin/minha-agenda" replace />;
+    }
+    
     // Admin, Gestor ou Técnico vão para o Dashboard Admin
     return <Navigate to="/admin/dashboard" replace />;
   }
