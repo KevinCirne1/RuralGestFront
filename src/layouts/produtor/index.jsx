@@ -1,5 +1,3 @@
-// src/layouts/produtor/index.js
-
 import React, { useState } from "react";
 import { Portal, Box, useDisclosure } from "@chakra-ui/react";
 import Footer from "components/footer/FooterAdmin.js";
@@ -16,14 +14,13 @@ export default function ProdutorLayout(props) {
   const [toggleSidebar, setToggleSidebar] = useState(false);
   const { onOpen } = useDisclosure();
 
-  // Filtrar rotas para a Sidebar (para não aparecer menu de admin)
+  // Filtrar rotas para a Sidebar 
   const produtorRoutes = routes.filter(r => r.layout === "/produtor");
 
   const getRoutes = (routes) => {
     return routes.map((prop, key) => {
       if (prop.layout === "/produtor") {
         return (
-          // CORREÇÃO AQUI: Removemos a "/" forçada antes de prop.path
           <Route path={prop.path} element={<prop.component />} key={key} />
         );
       }
@@ -92,7 +89,6 @@ export default function ProdutorLayout(props) {
           <Box mx='auto' p={{ base: "20px", md: "30px" }} pe='20px' minH='100vh' pt='50px'>
             <Routes>
               {getRoutes(routes)}
-              {/* Redirecionamento padrão dentro do /produtor */}
               <Route path="/" element={<Navigate to="/produtor/dashboard" replace />} />
             </Routes>
           </Box>

@@ -3,7 +3,7 @@ import {
   Box, Flex, Button, Icon, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
   FormControl, FormLabel, Input, useDisclosure, FormErrorMessage, Spinner, useToast,
-  IconButton, Tooltip, InputGroup, InputLeftElement, FormHelperText
+  IconButton, Tooltip, InputGroup, InputLeftElement
 } from "@chakra-ui/react";
 import { MdEdit, MdDelete, MdPersonAdd, MdSearch } from "react-icons/md"; 
 import Card from "components/card/Card.js";
@@ -59,7 +59,6 @@ export default function AgricultoresPage() {
 
   const handleSubmit = async (values, actions) => {
     try {
-      // --- LIMPEZA DOS DADOS PARA O BANCO ---
       const payload = {
         ...values,
         cpf: apenasNumeros(values.cpf),
@@ -144,10 +143,19 @@ export default function AgricultoresPage() {
                 .map((ag) => (
                     <Tr key={ag.id}>
                       <Td fontWeight="bold" color={textColor} borderColor={borderColor}>{ag.nome}</Td>
-                      {/* FORMATAÇÃO NA TABELA */}
-                      <Td borderColor={borderColor}>{formatarCPF(ag.cpf)}</Td>
-                      <Td borderColor={borderColor}>{ag.comunidade}</Td>
-                      <Td borderColor={borderColor}>{formatarTelefone(ag.contato)}</Td>
+                      
+                      <Td color={textColor} borderColor={borderColor}>
+                          {formatarCPF(ag.cpf)}
+                      </Td>
+
+                      <Td color={textColor} borderColor={borderColor}>
+                          {ag.comunidade}
+                      </Td>
+
+                      <Td color={textColor} borderColor={borderColor}>
+                          {formatarTelefone(ag.contato)}
+                      </Td>
+
                       <Td borderColor={borderColor}>
                         <Flex gap="5px">
                           <Tooltip label="Editar">
@@ -164,7 +172,6 @@ export default function AgricultoresPage() {
         </Table>
       </Card>
 
-      {/* Modal do Formulário */}
       <Formik 
         initialValues={
           agricultorSelecionado 
@@ -257,7 +264,6 @@ export default function AgricultoresPage() {
         )}
       </Formik>
 
-      {/* Modal Exclusão */}
       <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
         <ModalOverlay /><ModalContent>
           <ModalHeader>Confirmar Exclusão</ModalHeader><ModalCloseButton />

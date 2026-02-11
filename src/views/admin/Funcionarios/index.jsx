@@ -11,15 +11,13 @@ import * as Yup from 'yup';
 import api from "services/api";
 import { formatarCPF, formatarTelefone, apenasNumeros } from "utils/formatters";
 
-// --- CORREÇÃO DO SCHEMA (Compatível com Yup atualizado) ---
 const FuncionarioSchema = Yup.object().shape({
   nome: Yup.string().required('Nome é obrigatório'),
   login: Yup.string().required('Login/CPF é obrigatório'),
-  // O erro estava aqui. Agora usamos (schema) => schema...
   senha: Yup.string().when('id', {
-      is: (val) => !val, // Se não tem ID (é criação)
+      is: (val) => !val, 
       then: (schema) => schema.min(6, 'Mínimo 6 caracteres').required('Senha é obrigatória'),
-      otherwise: (schema) => schema.notRequired() // Se tem ID (é edição), senha é opcional
+      otherwise: (schema) => schema.notRequired() 
   }),
   perfil: Yup.string().required('Defina o cargo'),
   telefone: Yup.string().nullable()
@@ -50,7 +48,6 @@ export default function FuncionariosPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Função inteligente para exibir o Login (CPF ou Texto)
   const exibirLogin = (valor) => {
       if (!valor) return "";
       const apenasNums = apenasNumeros(valor);
@@ -60,12 +57,10 @@ export default function FuncionariosPage() {
 
   const handleSubmit = async (values, actions) => {
     try {
-      // Verifica se o login é numérico (CPF)
       const isCPF = /^\d+$/.test(apenasNumeros(values.login));
       
       const payload = {
           ...values,
-          // Se for CPF limpa a máscara. Se for "admin" mantém o texto.
           login: isCPF ? apenasNumeros(values.login) : values.login,
           telefone: apenasNumeros(values.telefone)
       };
@@ -138,7 +133,6 @@ export default function FuncionariosPage() {
                 login: exibirLogin(funcionarioSelecionado.login),
                 telefone: funcionarioSelecionado.telefone ? formatarTelefone(funcionarioSelecionado.telefone) : ''
             } : { 
-                // IMPORTANTE: id undefined na criação para o Yup saber que é novo
                 nome: '', login: '', senha: '', perfil: 'tecnico', telefone: '' 
             }}
             validationSchema={FuncionarioSchema}
@@ -168,7 +162,6 @@ export default function FuncionariosPage() {
                                 {...field} 
                                 onChange={(e) => {
                                     const valor = e.target.value;
-                                    // SÓ aplica máscara se for números
                                     if (/^\d*$/.test(apenasNumeros(valor)) && valor.length > 3 && !/[a-zA-Z]/.test(valor)) {
                                        form.setFieldValue('login', formatarCPF(valor));
                                     } else {

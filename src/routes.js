@@ -4,7 +4,7 @@ import React from 'react';
 import { Icon } from '@chakra-ui/react';
 import { 
   MdPerson, MdHome, MdLandscape, MdBuild, MdLock, 
-  MdAssignment, MdList, MdPeople, MdDirectionsCar, MdSchedule // Adicionado MdSchedule
+  MdAssignment, MdList, MdPeople, MdDirectionsCar, MdSchedule 
 } from 'react-icons/md';
 
 // Admin Imports
@@ -25,18 +25,18 @@ import SignUp from 'views/auth/signUp';
 import DashboardProdutor from 'views/produtor/DashboardProdutor'; 
 import MinhasSolicitacoes from 'views/produtor/MinhasSolicitacoes';
 
-// Demais funcionários (Agenda do Técnico/Motorista)
+//Agenda dos funcionários
 import MinhaAgenda from "views/admin/minhaAgenda";
 
 const routes = [
-  // --- ROTAS EXCLUSIVAS DO ADMIN ---
+  //ROTAS EXCLUSIVAS DO ADMIN
   {
     name: 'Dashboard Admin',
     layout: '/admin',
     path: '/dashboard',
     icon: <Icon as={MdHome} width="20px" height="20px" color="inherit" />,
     component: MainDashboard,
-    roles: ['admin'] // Apenas admin vê
+    roles: ['admin'] 
   },
   {
     name: 'Agricultores',
@@ -87,17 +87,17 @@ const routes = [
     roles: ['admin']
   },
 
-  // --- ROTA EXCLUSIVA PARA TÉCNICOS / MOTORISTAS ---
+  //ROTA EXCLUSIVA PARA TÉCNICOS / MOTORISTAS 
   {
     name: 'Minha Agenda',
     layout: '/admin',
     path: '/minha-agenda',
     icon: <Icon as={MdSchedule} width="20px" height="20px" color="inherit" />,
     component: MinhaAgenda,
-    roles: ['tecnico', 'operador'] // Aparece apenas para a equipe operacional
+    roles: ['tecnico', 'operador'] 
   },
 
-  // --- ROTAS DO PRODUTOR ---
+  //ROTAS DO PRODUTOR 
   {
     name: 'Painel do Produtor',
     layout: '/produtor',
@@ -115,7 +115,7 @@ const routes = [
     roles: ['produtor', 'agricultor']
   },
 
-  // --- ROTA DE PERFIL (Acesso Geral) ---
+  //ROTA DE PERFIL
   {
     name: 'Meu Perfil',
     layout: '/admin',
@@ -133,7 +133,7 @@ const routes = [
     roles: ['produtor', 'agricultor']
   },
 
-  // --- ROTAS DE AUTENTICAÇÃO (Sempre acessíveis se não logado) ---
+  //ROTAS DE AUTENTICAÇÃO 
   {
     name: 'Sign In',
     layout: '/auth',

@@ -9,48 +9,43 @@ import {
   Spinner
 } from "@chakra-ui/react";
 
-// Ícones
 import {
   MdBarChart,
   MdAgriculture, 
-  MdAssignment,   
+  MdAssignment,    
   MdCheckCircle
 } from "react-icons/md";
 
-// Componentes Visuais
 import IconBox from "components/icons/IconBox";
 import Card from "components/card/Card";
 import ReactApexChart from "react-apexcharts";
-
-// Serviços
 import { getDashboardResumo, getDashboardGraficos } from "services/dashboardService";
 
-// --- COMPONENTE MINI STATISTICS (Turbinado) ---
 const MiniStatistics = ({ startContent, name, value }) => {
   const textColor = useColorModeValue("secondaryGray.900", "white");
   const textColorSecondary = useColorModeValue("secondaryGray.600", "white");
 
   return (
-    <Card py='30px'> {/* Aumentado o padding vertical */}
+    <Card py='15px'>
       <Flex
         my='auto'
         h='100%'
-        align={{ base: "center", xl: "center" }}
+        align={{ base: "center", xl: "start" }}
         justify={{ base: "center", xl: "center" }}>
         {startContent}
 
-        <Box ms={startContent ? "25px" : "0px"}>
+        <Box ms={startContent ? "18px" : "0px"}>
           <Text
             color={textColorSecondary}
-            fontSize={{ base: "sm" }} // Aumentado o tamanho da legenda
-            fontWeight='600'
+            fontSize={{ base: "sm" }}
+            fontWeight='500'
             me='14px'>
             {name}
           </Text>
           <Text
             color={textColor}
-            fontSize={{ base: "4xl" }} // Aumentado o tamanho do valor para 4xl
-            fontWeight='800'
+            fontSize={{ base: "2xl" }}
+            fontWeight='700'
             lineHeight='100%'>
             {value}
           </Text>
@@ -63,15 +58,10 @@ const MiniStatistics = ({ startContent, name, value }) => {
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   
-  // Dados do Resumo
   const [stats, setStats] = useState({
     total_agricultores: 0,
     total_solicitacoes: 0,
-    solicitacoes_status: {
-      pendentes: 0,
-      em_andamento: 0,
-      concluidas: 0
-    }
+    solicitacoes_status: { pendentes: 0, em_andamento: 0, concluidas: 0 }
   });
 
   const [graficoServicos, setGraficoServicos] = useState({ categories: [], data: [] });
@@ -79,7 +69,8 @@ export default function Dashboard() {
 
   const brandColor = useColorModeValue("brand.500", "white");
   const boxBg = useColorModeValue("secondaryGray.300", "whiteAlpha.100");
-  const textColor = useColorModeValue("secondaryGray.900", "white");
+  const textColor = useColorModeValue("secondaryGray.900", "white"); 
+  const textColorSecondary = useColorModeValue("secondaryGray.600", "white"); 
 
   useEffect(() => {
     async function fetchData() {
@@ -115,34 +106,86 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
+  //GRÁFICO DE Serviços
   const barChartOptions = {
     chart: { toolbar: { show: false } },
     tooltip: { theme: "dark" },
     xaxis: { 
       categories: graficoServicos.categories,
-      labels: { style: { colors: "#A3AED0", fontSize: "12px", fontWeight: "500" } }
+      labels: { 
+        style: { 
+            colors: textColor, 
+            fontSize: "12px", 
+            fontWeight: "500" 
+        } 
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false }
+    },
+    yaxis: {
+        labels: {
+            style: {
+                colors: textColorSecondary, 
+                fontSize: "12px",
+                fontWeight: "500"
+            }
+        }
+    },
+    grid: {
+        strokeDashArray: 5,
+        yaxis: { lines: { show: true } },
+        xaxis: { lines: { show: false } }, 
     },
     fill: { type: "solid", colors: ["#4318FF"] },
-    plotOptions: { bar: { borderRadius: 4, columnWidth: "40px" } }
+    plotOptions: { bar: { borderRadius: 4, columnWidth: "40px" } },
+    dataLabels: { enabled: false }
   };
+  
   const barChartSeries = [{ name: "Solicitações", data: graficoServicos.data }];
 
+  //GRÁFICO DE STATUS
   const donutChartOptions = {
     labels: ["Pendentes", "Em Andamento", "Concluídas"],
     colors: ["#FFB547", "#805AD5", "#05CD99"], 
     chart: { width: "100%" },
-    legend: { show: true, position: "bottom" },
+    legend: { 
+        show: true, 
+        position: "bottom",
+        labels: {
+            colors: textColor, 
+            useSeriesColors: false
+        },
+    },
     plotOptions: {
       pie: {
         donut: {
           labels: {
             show: true,
+            name: {
+                show: true,
+                fontSize: '14px',
+                fontWeight: 600,
+                color: textColorSecondary, 
+            },
+            value: {
+                show: true,
+                fontSize: '24px', 
+                fontWeight: '700',
+                color: textColor, 
+                formatter: function (val) { return val; }
+            },
             total: {
               show: true,
+              showAlways: true,
               label: "Total",
-              fontSize: "22px",
-              fontWeight: "bold",
-              color: textColor,
+              fontSize: "14px",
+              fontWeight: "600",
+              color: textColor, 
+              formatter: function (w) {
+                return w.globals.seriesTotals.reduce((a, b) => {
+                  return a + b
+                }, 0)
+              }
             }
           }
         }
@@ -154,16 +197,14 @@ export default function Dashboard() {
 
   return (
     <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
-      
-      {/* LINHA 1: CARTÕES (Agora com 2 colunas e maiores) */}
-      <SimpleGrid columns={{ base: 1, md: 2 }} gap='20px' mb='20px'>
+      <SimpleGrid columns={{ base: 1, md: 2, xl: 2 }} gap='20px' mb='20px'>
         <MiniStatistics
           startContent={
             <IconBox 
-              w='80px' 
-              h='80px' 
+              w='56px' 
+              h='56px' 
               bg={boxBg} 
-              icon={<Icon w='40px' h='40px' as={MdAgriculture} color={brandColor} />} 
+              icon={<Icon w='32px' h='32px' as={MdAgriculture} color={brandColor} />} 
             />
           }
           name='Agricultores Cadastrados' 
@@ -172,18 +213,17 @@ export default function Dashboard() {
         <MiniStatistics
           startContent={
             <IconBox 
-              w='80px' 
-              h='80px' 
+              w='56px' 
+              h='56px' 
               bg={boxBg} 
-              icon={<Icon w='40px' h='40px' as={MdAssignment} color={brandColor} />} 
+              icon={<Icon w='32px' h='32px' as={MdAssignment} color={brandColor} />} 
             />
           }
-          name='Total de Pedidos Realizados' 
+          name='Total de Pedidos' 
           value={stats.total_solicitacoes}
         />
       </SimpleGrid>
 
-      {/* LINHA 2: GRÁFICOS */}
       <SimpleGrid columns={{ base: 1, md: 2 }} gap='20px' mb='20px'>
         <Card p='20px' align='center' direction='column' w='100%'>
             <Flex justify='space-between' align='center' w='100%' mb='20px'>

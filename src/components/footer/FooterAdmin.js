@@ -4,7 +4,7 @@ import {
   Link,
   Text,
   useColorModeValue,
-  Stack, // Importamos o Stack
+  Stack, 
 } from "@chakra-ui/react";
 
 export default function Footer() {
@@ -25,7 +25,7 @@ export default function Footer() {
       px={{ base: "30px", md: "50px" }}
       pb='30px'
     >
-      {/* BLOCO 1: COPYRIGHT E ATRIBUIÇÃO */}
+      {/*COPYRIGHT E ATRIBUIÇÃO */}
       <Text
         color={textColor}
         textAlign={{
@@ -40,13 +40,12 @@ export default function Footer() {
         </Text>
       </Text>
       
-      {/* BLOCO 2: LINKS USANDO STACK */}
       <Stack
-        direction={{ base: 'column', lg: 'row' }} // FORÇA a direção coluna em telas pequenas
-        spacing={{ base: '10px', lg: '44px' }}     // Controla o espaçamento entre os links
-        alignItems="center"                        // Centraliza os links em telas pequenas
+        direction={{ base: 'column', lg: 'row' }} 
+        spacing={{ base: '10px', lg: '44px' }}     
+        alignItems="center"                        
       >
-        {/* Usamos <Link> diretamente no Stack */}
+
         <Link fontWeight='500' color={textColor} href='#/contato'>
           Contato
         </Link>

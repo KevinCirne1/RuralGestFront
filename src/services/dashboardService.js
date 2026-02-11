@@ -2,7 +2,6 @@ import api from './api';
 
 export const getDashboardResumo = async () => {
   try {
-    // Nova rota do backend Matheus
     const response = await api.get('/dashboard/resumo');
     return response.data;
   } catch (error) {
@@ -13,7 +12,6 @@ export const getDashboardResumo = async () => {
 
 export const getDashboardGraficos = async () => {
   try {
-    // Nova rota do backend Matheus
     const response = await api.get('/dashboard/graficos');
     return response.data;
   } catch (error) {

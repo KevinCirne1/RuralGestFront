@@ -1,5 +1,3 @@
-// src/views/auth/signIn/index.jsx
-
 import React from 'react';
 import {
   Box,
@@ -24,12 +22,9 @@ import { MdOutlineRemoveRedEye } from 'react-icons/md';
 import { RiEyeCloseLine } from 'react-icons/ri';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
-
-// Importa o contexto de autenticação
 import { useAuth } from 'contexts/AuthContext';
 
 function SignIn() {
-  // --- 1. CONFIGURAÇÕES VISUAIS ---
   const bgForm = useColorModeValue('white', 'gray.800');
   const textColor = useColorModeValue('gray.800', 'white');
   const textColorSecondary = 'gray.500';
@@ -43,10 +38,9 @@ function SignIn() {
 
   const { login, authData } = useAuth();
 
-  // --- 2. LÓGICA DE LOGIN ---
+  //LÓGICA DE LOGIN
   const handleLogin = async (values, actions) => {
     try {
-      // Chama a função login passando os campos exatos que o Python espera
       await login(values.login, values.senha);
       
       toast({
@@ -72,13 +66,10 @@ function SignIn() {
     }
   };
 
-  // --- 3. REDIRECIONAMENTO INTELIGENTE ---
   if (authData?.user) {
     const perfil = authData.user.perfil;
     
-    // Verifica se é Agricultor OU Produtor (para garantir compatibilidade)
     if (perfil === 'agricultor' || perfil === 'produtor') {
-        // Redireciona para o Dashboard do Produtor
         return <Navigate to="/produtor/dashboard" replace />;
     }
     
@@ -86,14 +77,12 @@ function SignIn() {
         return <Navigate to="/admin/minha-agenda" replace />;
     }
     
-    // Admin, Gestor ou Técnico vão para o Dashboard Admin
     return <Navigate to="/admin/dashboard" replace />;
   }
 
   return (
     <Flex position='relative' h='100vh' w='100%' overflow='hidden'>
       
-      {/* ================= LADO ESQUERDO: FORMULÁRIO ================= */}
       <Flex
         h='100%'
         w={{ base: '100%', md: '50%', lg: '45%' }}
@@ -104,7 +93,6 @@ function SignIn() {
         p={{ base: '30px', md: '60px', lg: '80px' }}
       >
         <Box w='100%' maxW='450px'>
-          {/* Cabeçalho */}
           <VStack align='start' spacing={3} mb='40px'>
             <Heading color={textColor} fontSize={{ base: '32px', md: '40px' }} fontWeight='800' lineHeight='1.1'>
               Acessar <br/>
@@ -115,7 +103,6 @@ function SignIn() {
             </Text>
           </VStack>
 
-          {/* Form */}
           <Formik
             initialValues={{ login: '', senha: '' }}
             validationSchema={Yup.object({
@@ -128,7 +115,6 @@ function SignIn() {
               <Form>
                 <VStack spacing={5}>
                   
-                  {/* CAMPO USUÁRIO (LOGIN) */}
                   <Field name='login'>
                     {({ field, form }) => (
                       <FormControl isInvalid={form.errors.login && form.touched.login}>
@@ -145,7 +131,6 @@ function SignIn() {
                     )}
                   </Field>
 
-                  {/* CAMPO SENHA */}
                   <Field name='senha'>
                     {({ field, form }) => (
                       <FormControl isInvalid={form.errors.senha && form.touched.senha}>
@@ -189,7 +174,6 @@ function SignIn() {
         </Box>
       </Flex>
 
-      {/* ================= LADO DIREITO: IMAGEM ================= */}
       <Flex
         w={{ base: '0%', md: '50%', lg: '55%' }}
         h='100%'

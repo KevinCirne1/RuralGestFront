@@ -1,5 +1,3 @@
-// src/layouts/admin/index.jsx
-
 import React, { useState, useEffect } from 'react';
 import { Box, useColorModeValue, useDisclosure } from '@chakra-ui/react';
 import { Route, Routes, Navigate, useLocation } from 'react-router-dom';
@@ -19,7 +17,6 @@ export default function AdminLayout(props) {
   const [brandText, setBrandText] = useState('Dashboard');
   const navbarBg = useColorModeValue('rgba(244, 247, 254, 0.2)', 'rgba(11,20,55,0.5)');
 
-  // Atualiza o texto do topo (Dashboard, Perfil, etc)
   useEffect(() => {
     const activeRoute = routes.find(
       (route) => window.location.href.indexOf(route.layout + route.path) !== -1
@@ -27,13 +24,10 @@ export default function AdminLayout(props) {
     setBrandText(activeRoute ? activeRoute.name : 'Gestão Rural');
   }, [location]);
 
-  // Redireciona se não estiver logado
   if (!loading && !authData) {
     return <Navigate to="/auth/sign-in" replace />;
   }
 
-  // --- CORREÇÃO AQUI ---
-  // Filtra as rotas permitidas para este layout (Admin E Produtor)
   const getActiveRoutes = (routes) => {
     return routes.filter(route => 
       route.layout === "/admin" || route.layout === "/produtor"
@@ -63,7 +57,6 @@ export default function AdminLayout(props) {
         />
         <Box mx="auto" p={{ base: '20px', md: '30px' }} pe="20px" minH="calc(100vh - 120px)">
           <Routes>
-            {/* Mapeia as rotas ativas (Admin + Produtor) */}
             {getActiveRoutes(routes).map((prop, key) => (
               <Route
                 path={prop.path}
@@ -71,7 +64,6 @@ export default function AdminLayout(props) {
                 key={key}
               />
             ))}
-            {/* Rota padrão caso nada seja encontrado */}
             <Route path="*" element={<Navigate to="/admin/default" replace />} />
           </Routes>
         </Box>

@@ -1,12 +1,9 @@
-// Chakra imports
 import { Box, Flex, Icon, Text } from "@chakra-ui/react";
 import PropTypes from "prop-types";
 import React from "react";
-// import Footer from "components/footer/FooterAuth"; // LINHA REMOVIDA
+// import Footer from "components/footer/FooterAuth"; 
 import FixedPlugin from "components/fixedPlugin/FixedPlugin";
-// Custom components
 import { NavLink } from "react-router-dom";
-// Assets
 import { FaChevronLeft } from "react-icons/fa";
 
 function AuthIllustration(props) {
@@ -31,7 +28,7 @@ function AuthIllustration(props) {
         direction='column'>
         
         <NavLink
-          to='/' // Link ajustado para o Home
+          to='/' 
           style={() => ({
             width: "fit-content",
             marginTop: "40px",
@@ -66,14 +63,14 @@ function AuthIllustration(props) {
           <Flex
             bg={`url(${illustrationBackground})`}
             justify='center'
-            align='center' // AJUSTE: Centralizamos o novo texto
+            align='center' 
             w='100%'
             h='100%'
             bgSize='cover'
             bgPosition='50%'
             position='absolute'
             borderBottomLeftRadius={{ lg: "120px", xl: "200px" }}
-            direction="column" // Adiciona o seu novo conteúdo
+            direction="column" 
           >
             <Text color="white" fontSize="4xl" fontWeight="bold" textAlign="center" mb="4">
               Bem-vindo ao Gestão Rural
@@ -84,7 +81,6 @@ function AuthIllustration(props) {
           </Flex>
         </Box>
 
-        {/* <Footer /> LINHA REMOVIDA */}
       </Flex>
       <FixedPlugin />
     </Flex>

@@ -25,21 +25,20 @@ import {
   FormLabel,
   Input,
   Select,
-  IconButton, // Essencial para o botão de ícone igual ao de serviços
+  IconButton,
   Tooltip,
   useToast,
   HStack,
   VStack
 } from "@chakra-ui/react";
 
-// Ícones
-import { MdDirectionsCar, MdEdit, MdDelete, MdAdd } from "react-icons/md";
+import { MdEdit, MdDelete, MdAdd } from "react-icons/md";
 import Card from "components/card/Card.js";
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import api from "services/api";
 
-// Esquema de Validação
+//Esquema de Validação
 const VeiculoSchema = Yup.object().shape({
   nome: Yup.string().required('Nome/Modelo é obrigatório'),
   tipo: Yup.string().required('Tipo é obrigatório'),
@@ -52,8 +51,8 @@ export default function VeiculosPage() {
   const [loading, setLoading] = useState(true);
   const textColor = useColorModeValue("secondaryGray.900", "white");
   const borderColor = useColorModeValue("gray.200", "whiteAlpha.100");
+  
   const toast = useToast();
-
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [veiculoSelecionado, setVeiculoSelecionado] = useState(null);
 
@@ -108,12 +107,11 @@ export default function VeiculosPage() {
       }
   };
 
-  // --- LÓGICA DE CORES: MANUTENÇÃO AGORA É LARANJA ---
   const getStatusColor = (status) => {
     const s = status ? status.toUpperCase() : '';
     if (s === 'DISPONIVEL' || s === 'DISPONÍVEL') return 'green';
     if (s === 'EM USO') return 'blue';
-    if (s === 'MANUTENÇÃO' || s === 'MANUTENCAO') return 'orange'; // Ajuste solicitado
+    if (s === 'MANUTENÇÃO' || s === 'MANUTENCAO') return 'orange';
     return 'gray';
   };
 
@@ -151,8 +149,15 @@ export default function VeiculosPage() {
                   <Td fontWeight='bold' color={textColor} borderColor={borderColor}>
                     {veiculo.nome}
                   </Td>
-                  <Td borderColor={borderColor}>{veiculo.placa || '-'}</Td>
-                  <Td borderColor={borderColor}>{veiculo.tipo}</Td>
+
+                  <Td borderColor={borderColor} color={textColor}>
+                    {veiculo.placa || '-'}
+                  </Td>
+                  
+                  <Td borderColor={borderColor} color={textColor}>
+                    {veiculo.tipo}
+                  </Td>
+                  
                   <Td borderColor={borderColor}>
                     <Badge 
                         colorScheme={getStatusColor(veiculo.status)} 
@@ -165,20 +170,18 @@ export default function VeiculosPage() {
                   </Td>
                   <Td borderColor={borderColor}>
                       <HStack gap='2'>
-                          {/* BOTÃO EDITAR: IDÊNTICO À PÁGINA DE SERVIÇOS + CIRCULAR */}
                           <Tooltip label='Editar Veículo'>
                             <IconButton 
                                 icon={<MdEdit />} 
                                 size='sm' 
-                                colorScheme='brand' // Cor padrão da sua página de serviços
+                                colorScheme='brand' 
                                 variant='solid'
-                                isRound // Garante o formato de "bolinha" do seu print
+                                isRound 
                                 onClick={() => handleOpenModal(veiculo)} 
                                 aria-label="Editar"
                             />
                           </Tooltip>
                           
-                          {/* BOTÃO EXCLUIR: IDÊNTICO À PÁGINA DE SERVIÇOS + CIRCULAR */}
                           <Tooltip label='Excluir Veículo'>
                             <IconButton 
                                 icon={<MdDelete />} 
@@ -199,7 +202,6 @@ export default function VeiculosPage() {
         </Box>
       </Card>
 
-      {/* MODAL DE CADASTRO/EDIÇÃO */}
       <Modal isOpen={isOpen} onClose={onClose} size='lg'>
         <ModalOverlay />
         <ModalContent>

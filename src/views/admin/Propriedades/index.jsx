@@ -69,7 +69,6 @@ export default function PropriedadesPage() {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        // Formata para 6 casas decimais (precisão ideal para agricultura)
         const coords = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
         form.setFieldValue('coordenadas_geograficas', coords);
         toast({ title: "Localização capturada com sucesso!", status: "success", duration: 2000 });
@@ -95,7 +94,6 @@ export default function PropriedadesPage() {
     try {
       const { agricultor_id, ...dadosPropriedade } = values;
 
-      // Limpa as coordenadas antes de enviar para o banco
       const payload = {
           ...dadosPropriedade,
           coordenadas_geograficas: limparCoordenadas(values.coordenadas_geograficas),
@@ -176,7 +174,6 @@ export default function PropriedadesPage() {
                       <Td>{prop.tipo_agricultura}</Td>
                       <Td>{prop.area_total}</Td>
                       <Td>{prop.area_exploravel}</Td>
-                      {/* FORMATAÇÃO IDEAL NA TABELA */}
                       <Td fontWeight="medium" color="brand.500">
                         {formatarCoordenadas(prop.coordenadas_geograficas)}
                       </Td>
@@ -249,7 +246,6 @@ export default function PropriedadesPage() {
                             {...field} 
                             placeholder="-6.7551, -35.6602" 
                             onChange={(e) => {
-                              // Permite apenas números, pontos, vírgulas, sinais de menos e espaços
                               const val = e.target.value.replace(/[^\d.,\-\s]/g, "");
                               form.setFieldValue('coordenadas_geograficas', val);
                             }}
@@ -309,7 +305,6 @@ export default function PropriedadesPage() {
         )}
       </Formik>
 
-      {/* Modal Exclusão */}
       <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
         <ModalOverlay /><ModalContent>
           <ModalHeader>Confirmar Exclusão</ModalHeader><ModalCloseButton />

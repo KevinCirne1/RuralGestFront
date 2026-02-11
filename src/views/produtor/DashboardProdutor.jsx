@@ -1,5 +1,3 @@
-// src/views/produtor/DashboardProdutor.jsx
-
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Box, Flex, Button, Heading, Text, SimpleGrid, useColorModeValue, Icon,
@@ -27,11 +25,8 @@ export default function DashboardProdutor() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
   const { authData } = useAuth();
-  
-  // Pegamos o agricultor logado diretamente do contexto
   const userLogado = authData?.user;
   const agricultorLogado = authData?.agricultor; 
-
   const [propriedades, setPropriedades] = useState([]);
   const [servicos, setServicos] = useState([]);
 
@@ -39,17 +34,10 @@ export default function DashboardProdutor() {
     if (!userLogado) return;
     try {
       const [propRes, servRes] = await Promise.all([getPropriedades(), getServicos()]);
-      
-      // --- CORREÇÃO DA TRAVA VISUAL ---
-      // Identificamos o ID do agricultor (vulnerabilidade corrigida aqui)
       const meuId = agricultorLogado?.id || userLogado?.agricultor_id;
-
       const minhasProps = propRes.data.filter(p => 
         String(p.agricultor_id || p.agricultor?.id) === String(meuId)
       );
-
-      // Se o agricultor não tiver propriedades, a lista deve ficar VAZIA.
-      // Nunca use fallback para propRes.data, pois isso expõe dados de terceiros.
       setPropriedades(minhasProps); 
       setServicos(servRes.data);
       
@@ -62,7 +50,6 @@ export default function DashboardProdutor() {
 
   const handleSubmit = async (values, actions) => {
     try {
-      // Garantimos que o agricultor_id enviado é realmente o do usuário logado
       const meuId = agricultorLogado?.id || userLogado?.agricultor_id;
 
       const payload = {
@@ -96,8 +83,6 @@ export default function DashboardProdutor() {
     <Flex direction="column" align="center" justify="center" pt={{ base: "130px", md: "80px" }} minH="80vh">
       <Box maxW="container.lg" textAlign="center">
         <Heading as="h1" size="xl" mb={6} color={textColor}>Olá, {userLogado?.nome}!</Heading>
-        
-        {/* ... (Cards de atalho permanecem iguais) */}
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={10}>
           <Card p={6}>
             <Icon as={MdList} w={12} h={12} mx="auto" color="brand.500" />

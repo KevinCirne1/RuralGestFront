@@ -1,14 +1,11 @@
 import React, { useState } from "react";
 import { Portal, Box, useDisclosure } from "@chakra-ui/react";
 import Footer from "components/footer/FooterAdmin.js";
-// Navbar e Sidebar
 import Navbar from "components/navbar/NavbarAdmin.js";
 import Sidebar from "components/sidebar/Sidebar.js";
 import { SidebarContext } from "contexts/SidebarContext";
 import { Routes, Route, Navigate } from "react-router-dom";
 import routes from "routes.js";
-
-// Importando o contexto para verificar o perfil
 import { useAuth } from "contexts/AuthContext";
 
 export default function ProdutorLayout(props) {
@@ -19,19 +16,16 @@ export default function ProdutorLayout(props) {
   const [toggleSidebar, setToggleSidebar] = useState(false);
   const { onOpen } = useDisclosure();
 
-  // 1. RECUPERA O PERFIL DO USUÁRIO LOGADO
+  //RECUPERA O PERFIL DO USUÁRIO LOGADO
   const { authData } = useAuth();
-  // Converte para minúsculo para bater com 'agricultor' ou 'produtor' do routes.js
   const userProfile = authData?.user?.perfil?.toLowerCase(); 
 
-  // --- LÓGICA DE ROTAS (Backbone do Layout) ---
+  //LÓGICA DE ROTAS
   const getRoutes = (routes) => {
     return routes.map((prop, key) => {
       // Verifica se a rota pertence a este layout
       if (prop.layout === "/produtor") {
-        
-        // TRAVA DE SEGURANÇA EXTRA:
-        // Se a rota tem 'roles' definidos, verifica se o usuário pode acessar.
+
         if (prop.roles && !prop.roles.includes(userProfile)) {
             return null;
         }
@@ -64,8 +58,6 @@ export default function ProdutorLayout(props) {
     return activeNavbar;
   };
 
-  // 2. FILTRO DO SIDEBAR
-  // Filtra apenas rotas do layout /produtor E que o usuário tenha permissão
   const produtorRoutes = routes.filter(r => 
       r.layout === "/produtor" && 
       (!r.roles || r.roles.includes(userProfile))
@@ -79,7 +71,6 @@ export default function ProdutorLayout(props) {
           setToggleSidebar,
         }}>
         
-        {/* Passamos apenas as rotas filtradas para o Sidebar */}
         <Sidebar routes={produtorRoutes} display='none' {...rest} />
         
         <Box
@@ -113,7 +104,6 @@ export default function ProdutorLayout(props) {
           <Box mx='auto' p={{ base: "20px", md: "30px" }} pe='20px' minH='100vh' pt='50px'>
             <Routes>
               {getRoutes(routes)}
-              {/* Redirecionamento padrão: Se acessar /produtor, vai para dashboard */}
               <Route path="/" element={<Navigate to="/produtor/dashboard" replace />} />
             </Routes>
           </Box>

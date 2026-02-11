@@ -1,6 +1,3 @@
-// src/components/navbar/NavbarAdmin.js
-
-// Chakra Imports
 import { Box, Breadcrumb, BreadcrumbItem, BreadcrumbLink, Flex, Link, Text, useColorModeValue } from '@chakra-ui/react';
 import PropTypes from 'prop-types';
 import React, { useState, useEffect } from 'react';
@@ -19,9 +16,6 @@ export default function AdminNavbar(props) {
 
     const { secondary, message, brandText } = props;
 
-    // --- MUDANÇA AQUI: DE 'fixed' PARA 'absolute' ---
-    // Isso faz a barra ficar presa no topo da PÁGINA, e não na TELA.
-    // Quando você rolar para baixo, ela vai subir e sumir.
     let navbarPosition = 'absolute'; 
 
     let mainText = useColorModeValue('navy.700', 'white');

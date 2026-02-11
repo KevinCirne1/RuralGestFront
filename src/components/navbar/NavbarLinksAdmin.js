@@ -1,5 +1,3 @@
-// src/components/navbar/NavbarLinksAdmin.js
-
 import {
   Avatar,
   Button,
@@ -15,20 +13,15 @@ import {
   useColorMode,
   Portal,
 } from '@chakra-ui/react';
-// Custom Components
+
 import { SidebarResponsive } from 'components/sidebar/Sidebar';
 import PropTypes from 'prop-types';
 import React, { useState, useEffect, useCallback } from 'react';
-// Import NavLink e useLocation
 import { NavLink, useLocation } from 'react-router-dom';
-
-// Assets
 import { MdNotificationsNone, MdNotificationsActive } from 'react-icons/md';
 import { IoMdMoon, IoMdSunny } from 'react-icons/io';
 import routes from 'routes';
 import { useAuth } from 'contexts/AuthContext';
-
-// Import do Service
 import { getNotificacoes, marcarComoLida } from 'services/notificacaoService';
 
 export default function HeaderLinks(props) {
@@ -39,16 +32,14 @@ export default function HeaderLinks(props) {
   
   const [notificacoes, setNotificacoes] = useState([]);
 
-  // --- LÓGICA DE ROTA ---
+  //LÓGICA DE ROTA
   const profilePath = location.pathname.includes('/produtor') 
     ? '/produtor/profile' 
     : '/admin/profile';
 
-  // --- CORES ---
   const navbarIcon = useColorModeValue('gray.400', 'white');
   let menuBg = useColorModeValue('white', 'navy.800');
   const textColor = useColorModeValue('secondaryGray.900', 'white');
-  const textColorBrand = useColorModeValue('brand.700', 'brand.400');
   const shadow = useColorModeValue(
     '14px 17px 40px 4px rgba(112, 144, 176, 0.18)',
     '14px 17px 40px 4px rgba(112, 144, 176, 0.06)',
@@ -57,7 +48,7 @@ export default function HeaderLinks(props) {
   const bgNotificacaoNaoLida = useColorModeValue("blue.50", "navy.700");
   const bgHoverNotificacao = useColorModeValue("gray.100", "gray.700");
 
-  // --- BUSCA DE NOTIFICAÇÕES COM TRATAMENTO DE ERRO ---
+  //BUSCA DE NOTIFICAÇÕES
   const carregarNotificacoes = useCallback(async () => {
     if (!authData?.user?.id) return;
 
@@ -67,7 +58,6 @@ export default function HeaderLinks(props) {
         setNotificacoes(Array.isArray(response.data) ? response.data : []);
       }
     } catch (error) {
-      // Silencia erros 404 para não poluir o console do produtor/admin
       if (error.response?.status !== 404) {
         console.error("Erro ao buscar notificações:", error);
       }
@@ -76,9 +66,21 @@ export default function HeaderLinks(props) {
 
   useEffect(() => {
     carregarNotificacoes();
-    const intervalo = setInterval(carregarNotificacoes, 30000); // 30 segundos
+    const intervalo = setInterval(carregarNotificacoes, 30000); 
     return () => clearInterval(intervalo);
   }, [carregarNotificacoes]);
+
+  const handleLerTodas = async () => {
+    const notificacoesPendentes = notificacoes.filter(n => !n.lida);
+    if (notificacoesPendentes.length === 0) return;
+
+    try {
+      setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })));
+      await Promise.all(notificacoesPendentes.map(n => marcarComoLida(n.id)));
+    } catch (error) {
+      console.error("Erro ao sincronizar notificações lidas", error);
+    }
+  };
 
   const handleLer = async (notificacao) => {
     if (!notificacao.lida) {
@@ -109,7 +111,7 @@ export default function HeaderLinks(props) {
       <SidebarResponsive routes={routes} />
       
       {/* MENU NOTIFICAÇÕES */}
-      <Menu>
+      <Menu onOpen={handleLerTodas}>
         <MenuButton p="0px">
           <Box position="relative">
             <Icon
@@ -149,19 +151,9 @@ export default function HeaderLinks(props) {
             overflowY="auto"
             zIndex="1500"
             >
-            <Flex w="100%" mb="20px">
+            <Flex w="100%" mb="20px" alignItems="center">
                 <Text fontSize="md" fontWeight="600" color={textColor}>
-                Notificações ({naoLidas})
-                </Text>
-                <Text
-                fontSize="sm"
-                fontWeight="500"
-                color={textColorBrand}
-                ms="auto"
-                cursor="pointer"
-                onClick={carregarNotificacoes}
-                >
-                Atualizar
+                    Notificações ({naoLidas})
                 </Text>
             </Flex>
             <Flex flexDirection="column">
@@ -181,7 +173,7 @@ export default function HeaderLinks(props) {
                     onClick={() => handleLer(notif)}
                     >
                     <Flex align='center' direction="column" alignItems="flex-start" w="100%">
-                        <Text fontSize='sm' fontWeight={notif.lida ? '400' : '700'}>
+                        <Text fontSize='sm' fontWeight={notif.lida ? '400' : '700'} color={textColor}>
                         {notif.mensagem}
                         </Text>
                         <Text fontSize='xs' color="gray.400" mt="1">

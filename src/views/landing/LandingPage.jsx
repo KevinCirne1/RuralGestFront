@@ -1,5 +1,3 @@
-// src/views/landing/LandingPage.jsx
-
 import React from "react";
 import { Box, Flex, Button, Heading, Text, Stack } from "@chakra-ui/react";
 

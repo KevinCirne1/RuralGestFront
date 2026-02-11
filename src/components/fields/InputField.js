@@ -1,4 +1,3 @@
-// Chakra imports
 import {
   Flex,
   FormLabel,
@@ -6,12 +5,10 @@ import {
   Text,
   useColorModeValue,
 } from "@chakra-ui/react";
-// Custom components
 import React from "react";
 
 export default function Default(props) {
   const { id, label, extra, placeholder, type, mb, ...rest } = props;
-  // Chakra Color Mode
   const textColorPrimary = useColorModeValue("secondaryGray.900", "white");
 
   return (

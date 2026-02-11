@@ -22,7 +22,6 @@ export default function AuthLayout() {
           alignItems="center"
           justifyContent="center"
         >
-          {/* AQUI ESTÁ A CHAVE. O <Outlet /> renderiza as rotas filhas. */}
           <Outlet />
         </Flex>
       </Flex>

@@ -1,5 +1,3 @@
-
-
 import api from './api';
 
 // Função para buscar TODOS os serviços (READ)

@@ -1,5 +1,3 @@
-// src/views/admin/profile/index.jsx
-
 import React from "react";
 import { Box, Grid, Text, useColorModeValue, Avatar, Flex, Badge, Icon } from "@chakra-ui/react";
 import { MdVerified, MdEmail, MdPerson } from "react-icons/md";
@@ -10,26 +8,19 @@ export default function ProfileOverview() {
   const textColor = useColorModeValue("secondaryGray.900", "white");
   const grayColor = useColorModeValue("gray.500", "gray.400");
   
-  // Pegando dados do usuário logado do Contexto
+  // Pega dados do usuário logado do Contexto
   const { authData } = useAuth();
   const user = authData?.user;
 
-  // Definição de cores e textos baseados no perfil
   const isAdmin = user?.perfil === 'admin';
-  
-  // --- MUDANÇA AQUI: Cor Fixa "Brand" (Azul) para todo mundo ---
   const bannerColor = 'linear(to-b, brand.400, brand.600)';
-  
   const roleName = isAdmin ? 'Administrador' : 'Administrador';
 
   return (
     <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
       <Grid templateColumns={{ base: "1fr", lg: "1fr" }} gap={{ base: "20px", xl: "20px" }}>
         
-        {/* Cartão de Perfil */}
         <Card mb={{ base: "0px", lg: "20px" }} align='center'>
-          
-          {/* Fundo colorido no topo */}
           <Box
             bgGradient={bannerColor}
             h='130px'
@@ -38,7 +29,6 @@ export default function ProfileOverview() {
             mb='60px'
             position='relative'
           >
-            {/* Foto / Avatar */}
             <Flex justify="center">
                 <Avatar
                     name={user?.nome || "Usuário"}
@@ -48,7 +38,6 @@ export default function ProfileOverview() {
                     border='5px solid white'
                     position='absolute'
                     bottom='-60px'
-                    // --- MUDANÇA AQUI: Fundo do Avatar sempre azul ---
                     bg="brand.500"
                     color="white"
                     fontSize="50px"
@@ -59,7 +48,7 @@ export default function ProfileOverview() {
 
           <Flex direction='column' align='center' p='20px'>
             
-            {/* Nome e Ícone de Verificado */}
+
             <Flex align="center" gap={2} mt="10px">
                 <Text color={textColor} fontWeight='bold' fontSize='2xl'>
                 {user?.nome || "Visitante"}
@@ -77,7 +66,6 @@ export default function ProfileOverview() {
 
             {/* Badge do Cargo */}
             <Badge 
-                // --- MUDANÇA AQUI: Badge sempre na cor da marca ---
                 colorScheme="brand" 
                 fontSize="1em" 
                 borderRadius="full" 

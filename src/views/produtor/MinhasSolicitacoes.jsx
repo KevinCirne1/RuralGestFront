@@ -1,5 +1,3 @@
-// src/views/produtor/MinhasSolicitacoes.jsx
-
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Flex, Heading, Table, Thead, Tbody, Tr, Th, Td, Text, useColorModeValue,
@@ -36,7 +34,7 @@ export default function MinhasSolicitacoes() {
       const solicitacoesRes = await getSolicitacoes({ agricultor_id: idParaBuscar });
       const minhasSolicitacoes = solicitacoesRes.data;
 
-      // Ordena por data de solicitação (mais recente primeiro)
+      // Ordena por data de solicitação
       minhasSolicitacoes.sort((a, b) => new Date(b.data_solicitacao) - new Date(a.data_solicitacao));
       
       setSolicitacoes(minhasSolicitacoes);
@@ -56,13 +54,11 @@ export default function MinhasSolicitacoes() {
     fetchPageData();
   }, [fetchPageData]);
 
-  // Auxiliar para formatar a data no padrão brasileiro
   const formatDate = (dateString) => {
     if (!dateString) return "---";
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
   
-  // Define o estilo visual do Badge baseado no status
   const getStatusBadge = (status) => {
     if (!status) return <Badge>N/A</Badge>;
     const statusUpper = status.toUpperCase();
@@ -115,7 +111,6 @@ export default function MinhasSolicitacoes() {
                     {sol.servico?.nome_servico || sol.servico_nome || 'Serviço Geral'}
                   </Td>
                   <Td>{formatDate(sol.data_solicitacao)}</Td>
-                  {/* Campo que será preenchido após o Admin concluir o serviço */}
                   <Td>{formatDate(sol.data_execucao)}</Td>
                   <Td>{getStatusBadge(sol.status)}</Td>
                 </Tr>

@@ -1,4 +1,3 @@
-/* eslint-disable */
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Box, Flex, HStack, Text, useColorModeValue } from "@chakra-ui/react";
@@ -17,8 +16,7 @@ export function SidebarLinks(props) {
 
   const { authData } = useAuth();
   
-  // 1. Tenta pegar o perfil. Adicionei o toLowerCase() para evitar erro de maiúscula/minúscula
-  // E o fallback para localStorage para o menu não piscar/sumir no F5
+  //Tenta pegar o perfil do usuário logado, do contexto/localStorage para casos de refresh
   const rawPerfil = authData?.user?.perfil || localStorage.getItem("user_perfil");
   const perfilUsuario = rawPerfil ? rawPerfil.toLowerCase() : "";
 
@@ -29,34 +27,28 @@ export function SidebarLinks(props) {
   const createLinks = (routes) => {
     return routes.map((route, index) => {
       
-      // ---------------------------------------------------------
-      // FILTRO DE VISIBILIDADE (O CORAÇÃO DO PROBLEMA)
-      // ---------------------------------------------------------
-
-      // A. Rotas de Autenticação nunca aparecem
       if (route.layout === "/auth") return null;
 
-      // B. SE FOR PRODUTOR/AGRICULTOR
+      //SE FOR PRODUTOR/AGRICULTOR
       if (perfilUsuario === 'agricultor' || perfilUsuario === 'produtor') {
          // Não vê nada de Admin
          if (route.layout === '/admin') return null;
       }
 
-      // C. SE FOR ADMIN/GESTOR
+      //SE FOR ADMIN/GESTOR
       if (perfilUsuario === 'admin' || perfilUsuario === 'gestor') {
          // Não vê nada de Produtor
          if (route.layout === '/produtor') return null;
          
-         // Opcional: Admin não precisa ver o link "Minha Agenda" se não quiser
          if (route.path === '/minha-agenda') return null; 
       }
 
-      // D. SE FOR TÉCNICO OU OPERADOR (AQUI ESTAVA FALTANDO!)
+      //SE FOR TÉCNICO OU OPERADOR 
       if (perfilUsuario === 'tecnico' || perfilUsuario === 'operador') {
-         // 1. Não vê painel de produtor
+         //Não vê painel de produtor
          if (route.layout === '/produtor') return null;
 
-         // 2. FILTRO FINO: Dentro do Admin, só vê Agenda e Perfil
+         //Dentro do Admin, só vê Agenda e Perfil
          const rotasPermitidas = ['/minha-agenda', '/profile'];
          
          // Se for rota de admin E NÃO estiver na lista de permitidas, esconde.

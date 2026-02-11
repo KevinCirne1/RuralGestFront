@@ -1,10 +1,8 @@
-import api from './api'; // Certifique-se que o arquivo api.js está configurado corretamente
+import api from './api'; 
 
-// Função de Cadastro Público (Sign Up)
+// Função de Cadastro Público 
 export const createUsuario = async (userData) => {
-    // userData deve conter: nome, login, senha, cpf, comunidade, contato, perfil
     try {
-        // Agora aponta para /register, que cria Usuario + Agricultor
         const response = await api.post('/register', userData);
         return response.data;
     } catch (error) {
@@ -13,7 +11,7 @@ export const createUsuario = async (userData) => {
     }
 };
 
-// Função para Admin criar usuários internos (se houver essa tela)
+// Função para Admin criar usuários internos 
 export const createUsuarioInterno = async (userData) => {
     try {
         const response = await api.post('/usuarios', userData);

@@ -1,4 +1,5 @@
 import { mode } from "@chakra-ui/theme-tools";
+
 export const globalStyles = {
   colors: {
     brand: {
@@ -87,7 +88,13 @@ export const globalStyles = {
         letterSpacing: "-0.5px",
       },
       input: {
-        color: "gray.700",
+        color: mode("gray.700", "white")(props),
+      },
+      select: {
+        color: mode("gray.700", "white")(props),
+      },
+      textarea: {
+        color: mode("gray.700", "white")(props),
       },
       html: {
         fontFamily: "DM Sans",

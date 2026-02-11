@@ -11,15 +11,13 @@ import { format } from 'date-fns';
 export default function MinhaAgenda() {
   const [tarefas, setTarefas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingId, setLoadingId] = useState(null); // Controle de loading no botão
+  const [loadingId, setLoadingId] = useState(null); 
   const toast = useToast();
-  
-  // Controle do Modal
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [obs, setObs] = useState("");
   const [selectedSolicitacao, setSelectedSolicitacao] = useState(null);
   
-  // Pegamos o ID do motorista/técnico que logou
+  // Pega o ID do motorista/técnico que logou
   const userId = localStorage.getItem('user_id'); 
 
   const carregarAgenda = useCallback(async () => {
@@ -30,12 +28,11 @@ export default function MinhaAgenda() {
       // FILTRO:
       const minhasAtividades = res.data.filter(sol => 
         (String(sol.operador_id) === String(userId) || String(sol.veiculo_id) === String(userId)) ||
-        (sol.status !== 'CONCLUÍDA' && sol.operador_id === null) // Pega tarefas livres também se necessário
+        (sol.status !== 'CONCLUÍDA' && sol.operador_id === null) 
       );
       
       setTarefas(minhasAtividades);
     } catch (e) {
-      // toast({ title: "Erro ao carregar sua agenda", status: "error" });
       console.error(e);
     } finally {
       setLoading(false);
@@ -44,7 +41,6 @@ export default function MinhaAgenda() {
 
   useEffect(() => { carregarAgenda(); }, [carregarAgenda]);
 
-  // 1. Abre o Modal ao clicar no botão
   const handleOpenConcluir = (solicitacao) => {
     setSelectedSolicitacao(solicitacao);
     onOpen();
@@ -54,17 +50,16 @@ export default function MinhaAgenda() {
   const handleConfirmarConclusao = async () => {
     if (!selectedSolicitacao) return;
     
-    setLoadingId(selectedSolicitacao.id); // Ativa spinner no botão
+    setLoadingId(selectedSolicitacao.id); 
     try {
-      // Atualiza no Back-end
       await api.put(`/solicitacoes/${selectedSolicitacao.id}`, {
         status: 'CONCLUÍDA',
-        observacao_tecnico: obs // Envia a observação digitada
+        observacao_tecnico: obs 
       });
 
       toast({ title: "Serviço concluído!", status: "success" });
       
-      // Atualiza a lista removendo o item concluído (ou mudando o status visualmente)
+      // Atualiza a lista removendo o item concluído 
       setTarefas(prev => prev.map(t => 
         t.id === selectedSolicitacao.id ? { ...t, status: 'CONCLUÍDA' } : t
       ));
@@ -128,7 +123,7 @@ export default function MinhaAgenda() {
                 colorScheme='brand' 
                 size='sm'
                 variant='outline'
-                onClick={() => handleOpenConcluir(sol)} // <--- AGORA O BOTÃO FUNCIONA
+                onClick={() => handleOpenConcluir(sol)} 
                 isLoading={loadingId === sol.id}
               >
                 Concluir Serviço
@@ -140,7 +135,6 @@ export default function MinhaAgenda() {
         )}
       </SimpleGrid>
 
-      {/* MODAL DE CONFIRMAÇÃO */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>

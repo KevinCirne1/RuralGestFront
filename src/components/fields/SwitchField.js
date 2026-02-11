@@ -1,4 +1,3 @@
-// Chakra imports
 import {
   Box,
   Flex,
@@ -7,7 +6,6 @@ import {
   Text,
   useColorModeValue
 } from "@chakra-ui/react";
-// Custom components
 import React from "react";
 
 export default function Default(props) {

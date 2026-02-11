@@ -36,24 +36,21 @@ import api from "services/api";
 
 export default function Servicos() {
   const textColor = useColorModeValue("secondaryGray.900", "white");
-  const iconColor = useColorModeValue("brand.500", "white");
+  const boxBg = useColorModeValue("brand.500", "white"); 
+  const mainIconColor = useColorModeValue("white", "brand.500");
+  const descColor = useColorModeValue("gray.500", "gray.300"); 
+  const vehicleColor = useColorModeValue("gray.600", "gray.200");
 
   const [servicos, setServicos] = useState([]);
-  
-  // Estados do Modal
   const { isOpen, onOpen, onClose } = useDisclosure();
-  
-  // Estados do Alerta de Exclusão
   const { 
     isOpen: isDeleteOpen, 
     onOpen: onDeleteOpen, 
     onClose: onDeleteClose 
   } = useDisclosure();
   const cancelRef = useRef();
-
   const toast = useToast();
 
-  // Estados do Formulário
   const [idServico, setIdServico] = useState(null);
   const [nomeServico, setNomeServico] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -147,16 +144,17 @@ export default function Servicos() {
           <Card key={servico.id} p="20px">
             <Flex justify="space-between" align="start" mb="20px">
               <Flex align="center">
-                <Box bg={iconColor} p="10px" borderRadius="50%" color="white" mr="15px">
+                <Box bg={boxBg} p="10px" borderRadius="50%" color={mainIconColor} mr="15px">
                   <Icon as={MdBuild} w="24px" h="24px" />
                 </Box>
+                
                 <Box>
-                  <Text fontWeight="bold" fontSize="lg">{servico.nome_servico}</Text>
+                  <Text fontWeight="bold" fontSize="lg" color={textColor}>{servico.nome_servico}</Text>
                   
                   {servico.tipo_veiculo ? (
                       <Flex align="center" mt="5px">
-                        <Icon as={MdDirectionsCar} color="gray.500" w="14px" h="14px" mr="5px"/>
-                        <Text fontSize="xs" color="gray.500" fontWeight="600">
+                        <Icon as={MdDirectionsCar} color={vehicleColor} w="14px" h="14px" mr="5px"/>
+                        <Text fontSize="xs" color={vehicleColor} fontWeight="600">
                             Requer: {servico.tipo_veiculo}
                         </Text>
                       </Flex>
@@ -167,11 +165,11 @@ export default function Servicos() {
                 </Box>
               </Flex>
               
-              {/* --- BOTÕES DE AÇÃO PADRONIZADOS --- */}
               <Flex align="center" gap="5px">
                 <Tooltip label="Editar Serviço">
                     <IconButton
                         size="sm"
+                        color="white" 
                         colorScheme="brand"
                         icon={<MdEdit />}
                         onClick={() => handleEditar(servico)}
@@ -180,6 +178,7 @@ export default function Servicos() {
                 <Tooltip label="Excluir Serviço">
                     <IconButton
                         size="sm"
+                        color="white"
                         colorScheme="red"
                         icon={<MdDelete />}
                         onClick={() => handleExcluirConfirmacao(servico)}
@@ -188,7 +187,7 @@ export default function Servicos() {
               </Flex>
             </Flex>
 
-            <Text color="gray.500" fontSize="sm" noOfLines={2}>
+            <Text color={descColor} fontSize="sm" noOfLines={2}>
               {servico.descricao || "Sem descrição definida."}
             </Text>
           </Card>
@@ -199,7 +198,6 @@ export default function Servicos() {
         )}
       </SimpleGrid>
 
-      {/* --- MODAL DE CADASTRO / EDIÇÃO --- */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
@@ -228,7 +226,6 @@ export default function Servicos() {
                 <option value="Retroescavadeira">Retroescavadeira</option>
                 <option value="Motoniveladora">Motoniveladora</option>
                 <option value="Pá Mecânica">Pá Mecânica</option>
-                {/* REMOVIDO: Opção "Arado" - Arado é implemento, não veículo */}
               </Select>
               <Text fontSize="xs" color="gray.400" mt="5px">
                 Isso ajuda a filtrar a frota disponível na hora da solicitação.
@@ -256,7 +253,6 @@ export default function Servicos() {
         </ModalContent>
       </Modal>
 
-      {/* --- ALERTA DE EXCLUSÃO --- */}
       <AlertDialog isOpen={isDeleteOpen} leastDestructiveRef={cancelRef} onClose={onDeleteClose}>
         <AlertDialogOverlay>
           <AlertDialogContent>

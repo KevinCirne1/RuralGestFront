@@ -1,5 +1,3 @@
-// src/views/auth/signUp/index.jsx
-
 import React from 'react';
 import {
   Box,
@@ -17,7 +15,7 @@ import {
   useColorModeValue,
   useToast,
   VStack,
-  SimpleGrid // Novo import para organizar campos lado a lado
+  SimpleGrid 
 } from '@chakra-ui/react';
 import { NavLink, Navigate } from 'react-router-dom';
 import { MdOutlineRemoveRedEye, MdArrowBack } from 'react-icons/md';
@@ -29,7 +27,6 @@ import { createUsuario } from 'services/usuarioService';
 import { useAuth } from 'contexts/AuthContext';
 
 function SignUp() {
-  // --- 1. CONFIGURAÇÕES VISUAIS ---
   const bgForm = useColorModeValue('white', 'gray.800');
   const textColor = useColorModeValue('gray.800', 'white');
   const textColorSecondary = 'gray.500';
@@ -44,22 +41,21 @@ function SignUp() {
   
   const { authData } = useAuth();
 
-  // --- 2. LÓGICA DE CADASTRO ATUALIZADA ---
+  //LÓGICA DE CADASTRO 
   const handleRegister = async (values, actions) => {
     try {
       const newUser = {
         nome: values.nome,
         login: values.login,
         senha: values.senha,
-        // Novos campos obrigatórios do Back-end Matheus
         cpf: values.cpf,
         comunidade: values.comunidade,
-        contato: values.contato, // Opcional no código dele, mas bom enviar
+        contato: values.contato, 
         perfil: 'agricultor' 
       };
       
       await createUsuario(newUser);
-      
+    
       toast({
         title: "Cadastro realizado!",
         description: "Sua conta foi criada com sucesso.",
@@ -76,7 +72,7 @@ function SignUp() {
       }, 1000);
       
     } catch (error) {
-      // Tenta pegar a mensagem de erro específica do Back-end (ex: CPF já existe)
+
       const mensagemErro = error.response?.data?.message || "Verifique os dados e tente novamente.";
       
       toast({
@@ -101,7 +97,6 @@ function SignUp() {
   return (
     <Flex position='relative' h='100vh' w='100%' overflow='hidden'>
       
-      {/* ================= LADO ESQUERDO: FORMULÁRIO ================= */}
       <Flex
         h='100%'
         w={{ base: '100%', md: '50%', lg: '45%' }}
@@ -158,7 +153,6 @@ function SignUp() {
               <Form>
                 <VStack spacing={4}>
                   
-                  {/* Nome Completo */}
                   <Field name='nome'>
                     {({ field, form }) => (
                       <FormControl isInvalid={form.errors.nome && form.touched.nome}>
@@ -169,7 +163,6 @@ function SignUp() {
                     )}
                   </Field>
 
-                  {/* CPF e Telefone na mesma linha */}
                   <SimpleGrid columns={2} spacing={4} w="100%">
                       <Field name='cpf'>
                         {({ field, form }) => (
@@ -191,7 +184,6 @@ function SignUp() {
                       </Field>
                   </SimpleGrid>
 
-                  {/* Comunidade */}
                   <Field name='comunidade'>
                     {({ field, form }) => (
                       <FormControl isInvalid={form.errors.comunidade && form.touched.comunidade}>
@@ -202,7 +194,6 @@ function SignUp() {
                     )}
                   </Field>
 
-                  {/* Usuário (Login) */}
                   <Field name='login'>
                     {({ field, form }) => (
                       <FormControl isInvalid={form.errors.login && form.touched.login}>
@@ -213,7 +204,6 @@ function SignUp() {
                     )}
                   </Field>
 
-                  {/* Senha */}
                   <Field name='senha'>
                     {({ field, form }) => (
                       <FormControl isInvalid={form.errors.senha && form.touched.senha}>
@@ -229,7 +219,6 @@ function SignUp() {
                     )}
                   </Field>
 
-                  {/* Confirmar Senha */}
                   <Field name='confirmarSenha'>
                     {({ field, form }) => (
                       <FormControl isInvalid={form.errors.confirmarSenha && form.touched.confirmarSenha}>
@@ -262,7 +251,6 @@ function SignUp() {
         </Box>
       </Flex>
 
-      {/* ================= LADO DIREITO (Mantido igual) ================= */}
       <Flex
         w={{ base: '0%', md: '50%', lg: '55%' }}
         h='100%'
