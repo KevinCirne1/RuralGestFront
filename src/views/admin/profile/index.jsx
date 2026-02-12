@@ -12,9 +12,27 @@ export default function ProfileOverview() {
   const { authData } = useAuth();
   const user = authData?.user;
 
-  const isAdmin = user?.perfil === 'admin';
+  // --- LÓGICA DE CARGOS CORRIGIDA ---
+  
+  // 1. Dicionário que traduz o código do banco para o nome na tela
+  const mapaDeCargos = {
+    'admin': 'Administrador',
+    'produtor': 'Produtor Rural',
+    'tecnico': 'Técnico Rural',
+    'operador': 'Operador de Máquinas',
+    'funcionario': 'Colaborador'
+  };
+
+  // 2. Pega o perfil do usuário e converte para minúsculo (para evitar erros se vier 'Admin' ou 'ADMIN')
+  const perfilUsuario = user?.perfil ? user.perfil.toLowerCase() : '';
+
+  // 3. Define o nome final. Se não achar no mapa, usa "Colaborador Rural" como padrão.
+  const roleName = mapaDeCargos[perfilUsuario] || "Colaborador Rural";
+
+  // Define a cor do banner (pode manter estático ou mudar baseado no cargo se quiser no futuro)
   const bannerColor = 'linear(to-b, brand.400, brand.600)';
-  const roleName = isAdmin ? 'Administrador' : 'Administrador';
+
+  // ----------------------------------
 
   return (
     <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
@@ -48,7 +66,7 @@ export default function ProfileOverview() {
 
           <Flex direction='column' align='center' p='20px'>
             
-
+            {/* Nome do Usuário */}
             <Flex align="center" gap={2} mt="10px">
                 <Text color={textColor} fontWeight='bold' fontSize='2xl'>
                 {user?.nome || "Visitante"}
@@ -64,7 +82,7 @@ export default function ProfileOverview() {
                 </Text>
             </Flex>
 
-            {/* Badge do Cargo */}
+            {/* Badge do Cargo (Agora Dinâmico) */}
             <Badge 
                 colorScheme="brand" 
                 fontSize="1em" 

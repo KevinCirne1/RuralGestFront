@@ -22,7 +22,9 @@ import { MdNotificationsNone, MdNotificationsActive } from 'react-icons/md';
 import { IoMdMoon, IoMdSunny } from 'react-icons/io';
 import routes from 'routes';
 import { useAuth } from 'contexts/AuthContext';
-import { getNotificacoes, marcarComoLida } from 'services/notificacaoService';
+
+// IMPORTANTE: Adicionada a importação da nova função marcarTodasComoLidas
+import { getNotificacoes, marcarComoLida, marcarTodasComoLidas } from 'services/notificacaoService';
 
 export default function HeaderLinks(props) {
   const { secondary } = props;
@@ -32,7 +34,7 @@ export default function HeaderLinks(props) {
   
   const [notificacoes, setNotificacoes] = useState([]);
 
-  //LÓGICA DE ROTA
+  // LÓGICA DE ROTA (Padronizada)
   const profilePath = location.pathname.includes('/produtor') 
     ? '/produtor/profile' 
     : '/admin/profile';
@@ -48,7 +50,7 @@ export default function HeaderLinks(props) {
   const bgNotificacaoNaoLida = useColorModeValue("blue.50", "navy.700");
   const bgHoverNotificacao = useColorModeValue("gray.100", "gray.700");
 
-  //BUSCA DE NOTIFICAÇÕES
+  // BUSCA DE NOTIFICAÇÕES (Refresh a cada 30 segundos)
   const carregarNotificacoes = useCallback(async () => {
     if (!authData?.user?.id) return;
 
@@ -70,28 +72,40 @@ export default function HeaderLinks(props) {
     return () => clearInterval(intervalo);
   }, [carregarNotificacoes]);
 
-  const handleLerTodas = async () => {
-    const notificacoesPendentes = notificacoes.filter(n => !n.lida);
-    if (notificacoesPendentes.length === 0) return;
-
-    try {
-      setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })));
-      await Promise.all(notificacoesPendentes.map(n => marcarComoLida(n.id)));
-    } catch (error) {
-      console.error("Erro ao sincronizar notificações lidas", error);
-    }
-  };
-
+  // FUNÇÃO CORRIGIDA: Marca uma única notificação no banco via POST
   const handleLer = async (notificacao) => {
     if (!notificacao.lida) {
       try {
+        // 1. Persistência real no PostgreSQL
         await marcarComoLida(notificacao.id);
+        
+        // 2. Atualização de estado imediata no Front-end
         setNotificacoes(prev => prev.map(n => 
           n.id === notificacao.id ? { ...n, lida: true } : n
         ));
       } catch (error) {
-        console.error("Erro ao marcar como lida", error);
+        console.error("Erro ao marcar notificação como lida no banco:", error);
       }
+    }
+  };
+
+  // FUNÇÃO OTIMIZADA: Agora usa a rota 'ler-tudo' para persistência em massa
+  const handleLerTodas = async () => {
+    const naoLidasCount = notificacoes.filter(n => !n.lida).length;
+    if (naoLidasCount === 0) return;
+
+    try {
+      // 1. Atualização otimista (faz o ponto sumir na hora para o usuário)
+      setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })));
+
+      // 2. Chamada única ao backend (Muito mais eficiente que vários posts individuais)
+      await marcarTodasComoLidas(authData.user.id);
+      
+      console.log("Sucesso: Todas as notificações foram persistidas como lidas no banco.");
+    } catch (error) {
+      console.error("Erro ao sincronizar leitura em massa no PostgreSQL", error);
+      // Se falhar, recarrega para mostrar o estado real do banco
+      carregarNotificacoes(); 
     }
   };
 
@@ -110,7 +124,7 @@ export default function HeaderLinks(props) {
     >
       <SidebarResponsive routes={routes} />
       
-      {/* MENU NOTIFICAÇÕES */}
+      {/* MENU NOTIFICAÇÕES - Aciona persistência ao abrir */}
       <Menu onOpen={handleLerTodas}>
         <MenuButton p="0px">
           <Box position="relative">
@@ -170,6 +184,9 @@ export default function HeaderLinks(props) {
                     borderRadius="8px"
                     mb="5px"
                     bg={notif.lida ? "transparent" : bgNotificacaoNaoLida}
+                    
+                    // Persiste leitura individual ao passar o mouse ou clicar
+                    onMouseEnter={() => handleLer(notif)}
                     onClick={() => handleLer(notif)}
                     >
                     <Flex align='center' direction="column" alignItems="flex-start" w="100%">
@@ -188,6 +205,7 @@ export default function HeaderLinks(props) {
         </Portal>
       </Menu>
 
+      {/* BOTÃO DARK MODE */}
       <Button
         variant="no-hover"
         bg="transparent"
@@ -276,8 +294,9 @@ export default function HeaderLinks(props) {
 }
 
 HeaderLinks.propTypes = {
-  variant: PropTypes.string,
-  fixed: PropTypes.bool,
   secondary: PropTypes.bool,
+  fixed: PropTypes.bool,
   onOpen: PropTypes.func,
+  logoText: PropTypes.string,
+  scrolled: PropTypes.bool
 };

@@ -1,5 +1,3 @@
-
-
 import api from "./api"; 
 
 // Buscar TODOS os agricultores (READ)
