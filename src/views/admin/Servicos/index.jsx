@@ -28,9 +28,11 @@ import {
   AlertDialogHeader,
   AlertDialogContent,
   AlertDialogOverlay,
-  Tooltip 
+  Tooltip,
+  Switch, // <--- IMPORTADO
+  Badge // <--- IMPORTADO PARA EXIBIR NO CARD
 } from "@chakra-ui/react";
-import { MdAdd, MdBuild, MdEdit, MdDelete, MdDirectionsCar } from "react-icons/md";
+import { MdAdd, MdBuild, MdEdit, MdDelete, MdDirectionsCar, MdPerson } from "react-icons/md";
 import Card from "components/card/Card";
 import api from "services/api";
 
@@ -55,6 +57,9 @@ export default function Servicos() {
   const [nomeServico, setNomeServico] = useState("");
   const [descricao, setDescricao] = useState("");
   const [tipoVeiculo, setTipoVeiculo] = useState(""); 
+  
+  // NOVO ESTADO: Define se exige funcionário (Padrão: true)
+  const [requerFuncionario, setRequerFuncionario] = useState(true);
 
   useEffect(() => {
     carregarServicos();
@@ -74,6 +79,7 @@ export default function Servicos() {
     setNomeServico("");
     setDescricao("");
     setTipoVeiculo(""); 
+    setRequerFuncionario(true); // Padrão é exigir
     onOpen();
   };
 
@@ -82,6 +88,8 @@ export default function Servicos() {
     setNomeServico(servico.nome_servico);
     setDescricao(servico.descricao || "");
     setTipoVeiculo(servico.tipo_veiculo || ""); 
+    // Se o backend não retornar esse campo ainda (null), assume true por segurança
+    setRequerFuncionario(servico.requer_funcionario !== false); 
     onOpen();
   };
 
@@ -99,7 +107,8 @@ export default function Servicos() {
     const dados = { 
         nome_servico: nomeServico, 
         descricao,
-        tipo_veiculo: tipoVeiculo || null 
+        tipo_veiculo: tipoVeiculo || null,
+        requer_funcionario: requerFuncionario // <--- ENVIANDO AO BACKEND
     };
 
     try {
@@ -161,6 +170,13 @@ export default function Servicos() {
                   ) : (
                       <Text fontSize="xs" color="gray.400" mt="5px">Não requer maquinário</Text>
                   )}
+
+                  {/* BADGE VISUAL PARA O ADMIN SABER SE EXIGE FUNCIONÁRIO */}
+                  {servico.requer_funcionario !== false ? (
+                      <Badge colorScheme="purple" mt="1" fontSize="10px">Exige Técnico</Badge>
+                  ) : (
+                      <Badge colorScheme="green" mt="1" fontSize="10px">Auto-atendimento</Badge>
+                  )}
                   
                 </Box>
               </Flex>
@@ -212,6 +228,22 @@ export default function Servicos() {
                 onChange={(e) => setNomeServico(e.target.value)}
               />
             </FormControl>
+
+            {/* SWITCH PARA REQUER FUNCIONÁRIO */}
+            <FormControl display='flex' alignItems='center' mb="15px">
+              <FormLabel htmlFor='requer-func' mb='0' fontWeight="bold">
+                Exige Funcionário Responsável?
+              </FormLabel>
+              <Switch 
+                id='requer-func' 
+                colorScheme="brand"
+                isChecked={requerFuncionario} 
+                onChange={(e) => setRequerFuncionario(e.target.checked)} 
+              />
+            </FormControl>
+            <Text fontSize="xs" color="gray.500" mb="15px" mt="-10px">
+                Se marcado, o sistema impedirá a conclusão do serviço sem um técnico atribuído.
+            </Text>
 
             <FormControl mb="15px">
               <FormLabel>Veículo Necessário (Opcional)</FormLabel>

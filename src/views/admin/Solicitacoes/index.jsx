@@ -67,9 +67,9 @@ export default function SolicitacoesPage() {
         api.get('/propriedades'), api.get('/agricultores'), api.get('/usuarios') 
       ]);
       
-      const sortedSolicitacoes = (reqSol.data || []).sort((a, b) => 
-        new Date(b.data_solicitacao) - new Date(a.data_solicitacao)
-      );
+      const sortedSolicitacoes = (reqSol.data || []).sort((a, b) => {
+         return new Date(b.data_solicitacao) - new Date(a.data_solicitacao);
+      });
 
       setSolicitacoes(sortedSolicitacoes);
       setServicos(reqServ.data || []);
@@ -84,18 +84,23 @@ export default function SolicitacoesPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSubmit = async (values, actions) => {
-    // --- VALIDAÇÃO DE SEGURANÇA 1: BLOQUEAR CONCLUSÃO SEM TÉCNICO ---
-    // Se for edição, o status for CONCLUÍDA e não tiver operador no objeto original
-    if (solicitacaoSelecionada && values.status === 'CONCLUÍDA' && !solicitacaoSelecionada.operador_id) {
+    const servicoRegra = servicos.find(s => s.id == values.servico_id);
+
+    if (
+        solicitacaoSelecionada && 
+        values.status === 'CONCLUÍDA' && 
+        servicoRegra?.requer_funcionario !== false && 
+        !solicitacaoSelecionada.operador_id
+    ) {
         toast({ 
-            title: "Ação Bloqueada", 
-            description: "Você não pode concluir um serviço sem antes atribuir um funcionário responsável.", 
-            status: "warning", 
-            duration: 5000, 
+            title: "Atribuição Obrigatória", 
+            description: `O serviço "${servicoRegra?.nome_servico}" exige um funcionário responsável. Atribua alguém antes de concluir.`, 
+            status: "error", 
+            duration: 6000, 
             isClosable: true 
         });
         actions.setSubmitting(false);
-        return; // Para a execução aqui
+        return; 
     }
 
     try {
@@ -137,11 +142,14 @@ export default function SolicitacoesPage() {
 
   const handleSalvarAtribuicao = async () => {
     try {
+      const operadorId = tecnicoSelecionado === "" ? null : tecnicoSelecionado;
+
       await api.put(`/solicitacoes/${solicitacaoParaAtribuir.id}`, { 
-          operador_id: tecnicoSelecionado, 
+          operador_id: operadorId, 
           status: 'EM ANDAMENTO' 
       });
-      toast({ title: "Equipe atribuída com sucesso!", status: "success" });
+      
+      toast({ title: "Situação atualizada!", status: "success" });
       fetchData(); 
       modalAtribuir.onClose();
     } catch (error) { toast({ title: "Erro na atribuição.", status: "error" }); }
@@ -182,9 +190,9 @@ export default function SolicitacoesPage() {
     propriedade_id: solicitacaoSelecionada?.propriedade?.id || '',
     servico_id: solicitacaoSelecionada?.servico?.id || '',
     veiculo_id: solicitacaoSelecionada?.veiculo?.id || '',
-    observacao: solicitacaoSelecionada?.observacao || '', // Mantemos aqui para não quebrar, mas não mostramos o input
+    observacao: solicitacaoSelecionada?.observacao || '',
     observacoes: solicitacaoSelecionada?.observacoes || '',
-    observacao_funcionario: solicitacaoSelecionada?.observacao_funcionario || '', // Mantemos aqui para não quebrar
+    observacao_funcionario: solicitacaoSelecionada?.observacao_funcionario || '',
     data_execucao: solicitacaoSelecionada?.data_execucao ? solicitacaoSelecionada.data_execucao.split('T')[0] : ''
   };
 
@@ -243,9 +251,26 @@ export default function SolicitacoesPage() {
                       <Text fontWeight='800' color={textColor}>{sol.agricultor?.nome}</Text>
                   </Flex>
                   <Text fontSize='sm' color='gray.500'>Local: <b>{sol.propriedade?.terreno}</b></Text>
-                  <Text fontSize='sm' color='gray.500' mt="1">Pedido: <b>{sol.data_solicitacao ? format(new Date(sol.data_solicitacao), 'dd/MM/yyyy') : '-'}</b></Text>
+                  
+                  <Text fontSize='sm' color='gray.500' mt="1">
+                    Pedido: <b>{sol.data_solicitacao ? (sol.data_solicitacao.includes('/') ? sol.data_solicitacao : format(new Date(sol.data_solicitacao), 'dd/MM/yyyy')) : '-'}</b>
+                  </Text>
 
-                  {/* BLOCO DE LEITURA (VISÍVEL APENAS NO CARD) */}
+                  {/* --- DATA DE EXECUÇÃO CORRIGIDA --- */}
+                  {sol.status === 'CONCLUÍDA' && sol.data_execucao && (
+                    <Flex align="center" mt="1">
+                       <Icon as={MdCheckCircle} color="green.500" w="12px" h="12px" mr="1" />
+                       <Text fontSize='sm' color='green.600' fontWeight="bold">
+                          Executado em: {
+                              sol.data_execucao.includes('/') 
+                                ? sol.data_execucao 
+                                : format(new Date(sol.data_execucao), 'dd/MM/yyyy')
+                          }
+                       </Text>
+                    </Flex>
+                  )}
+                  {/* ---------------------------------- */}
+
                   {sol.observacao && (
                     <Box mt="3" p="2" bg={bgObsAgricultor} borderRadius="md" borderLeft="3px solid" borderColor="brand.500">
                       <Flex align="center" mb="1">
@@ -310,7 +335,6 @@ export default function SolicitacoesPage() {
           })}
       </SimpleGrid>
 
-      {/* MODAL DE EDIÇÃO */}
       <Modal isOpen={isOpen} onClose={onClose} size='lg'>
         <ModalOverlay />
         <ModalContent>
@@ -380,18 +404,13 @@ export default function SolicitacoesPage() {
                   <Field name="data_execucao">
                       {({ field }) => (
                           <FormControl mb={4}>
-                              <FormLabel fontWeight="bold">Data de Execução (Agendamento)</FormLabel>
+                              <FormLabel fontWeight="bold">Data de Execução</FormLabel>
                               <Input {...field} type="date" bg={bgInput} />
                           </FormControl>
                       )}
                   </Field>
                   
                   <Divider mb={4} />
-                  
-                  {/* CAMPOS DE OBSERVAÇÃO REMOVIDOS PARA O ADMIN NÃO EDITAR.
-                     Se ele for criar uma nova solicitação, a 'observacao' (do agricultor) 
-                     deve ser inserida manualmente abaixo, mas 'observacao_funcionario' fica oculta.
-                  */}
                   
                   {!solicitacaoSelecionada && (
                     <Field name="observacao">
@@ -412,8 +431,6 @@ export default function SolicitacoesPage() {
                           </FormControl>
                       )}
                   </Field>
-                  
-                  {/* O campo 'observacao_funcionario' foi removido totalmente do render do modal */}
                   
                 </ModalBody>
                 
@@ -437,6 +454,8 @@ export default function SolicitacoesPage() {
           <ModalBody>
             <Text mb={2} fontSize="sm" color="gray.500">
                 Selecione o funcionário que será responsável por executar este serviço.
+                <br/>
+                <b>Nota:</b> Se o serviço for administrativo ou auto-atendimento, esta atribuição pode ser opcional.
             </Text>
             <Select 
                 placeholder="Selecione o técnico..." 
@@ -453,7 +472,7 @@ export default function SolicitacoesPage() {
           </ModalBody>
           <ModalFooter>
               <Button variant="ghost" mr="3" onClick={modalAtribuir.onClose}>Cancelar</Button>
-              <Button colorScheme='purple' onClick={handleSalvarAtribuicao} isDisabled={!tecnicoSelecionado}>
+              <Button colorScheme='purple' onClick={handleSalvarAtribuicao}>
                   Confirmar Atribuição
               </Button>
           </ModalFooter>

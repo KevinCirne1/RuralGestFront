@@ -17,7 +17,7 @@ import {
 import { SidebarResponsive } from 'components/sidebar/Sidebar';
 import PropTypes from 'prop-types';
 import React, { useState, useEffect, useCallback } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'; // Adicionado useNavigate
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'; 
 import { MdNotificationsNone, MdNotificationsActive } from 'react-icons/md';
 import { IoMdMoon, IoMdSunny } from 'react-icons/io';
 import routes from 'routes';
@@ -29,18 +29,28 @@ export default function HeaderLinks(props) {
   const { colorMode, toggleColorMode } = useColorMode();
   const { authData, logout } = useAuth();
   const location = useLocation(); 
-  const navigate = useNavigate(); // Hook para redirecionamento programático
+  const navigate = useNavigate();
   
   const [notificacoes, setNotificacoes] = useState([]);
+  const user = authData?.user; 
 
-  // LÓGICA DE ROTA (Padronizada)
-  const profilePath = location.pathname.includes('/produtor') 
-    ? '/produtor/profile' 
-    : '/admin/profile';
+  // --- LÓGICA DE CARGOS ---
+  const mapaCargos = {
+      'admin': 'Administrador',
+      'administrador': 'Administrador',
+      'produtor': 'Produtor Rural',
+      'tecnico': 'Técnico de Campo',
+      'operador': 'Operador de Máquinas'
+  };
 
+  const perfilLimpo = user?.perfil ? user.perfil.toLowerCase().trim() : '';
+  const nomeCargo = mapaCargos[perfilLimpo] || user?.perfil || "Colaborador Rural";
+
+  // --- ESTILOS ---
   const navbarIcon = useColorModeValue('gray.400', 'white');
   let menuBg = useColorModeValue('white', 'navy.800');
   const textColor = useColorModeValue('secondaryGray.900', 'white');
+  const borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
   const shadow = useColorModeValue(
     '14px 17px 40px 4px rgba(112, 144, 176, 0.18)',
     '14px 17px 40px 4px rgba(112, 144, 176, 0.06)',
@@ -50,18 +60,16 @@ export default function HeaderLinks(props) {
   const bgHoverNotificacao = useColorModeValue("gray.100", "gray.700");
 
   const carregarNotificacoes = useCallback(async () => {
-    if (!authData?.user?.id) return;
+    if (!user?.id) return;
     try {
-      const response = await getNotificacoes(authData.user.id);
+      const response = await getNotificacoes(user.id);
       if (response && response.data) {
         setNotificacoes(Array.isArray(response.data) ? response.data : []);
       }
     } catch (error) {
-      if (error.response?.status !== 404) {
-        console.error("Erro ao buscar notificações:", error);
-      }
+      if (error.response?.status !== 404) console.error("Erro ao buscar notificações:", error);
     }
-  }, [authData]);
+  }, [user]);
 
   useEffect(() => {
     carregarNotificacoes();
@@ -69,46 +77,51 @@ export default function HeaderLinks(props) {
     return () => clearInterval(intervalo);
   }, [carregarNotificacoes]);
 
-  // --- NOVA FUNÇÃO DE CLIQUE INTELIGENTE ---
+  // --- FUNÇÃO DE CLIQUE COM REDIRECIONAMENTO INTELIGENTE POR PERFIL ---
   const handleNotificacaoClick = async (notificacao) => {
-    // 1. Marca como lida no banco e no estado local
+    // 1. Marca como lida no banco e no estado
     if (!notificacao.lida) {
       try {
         await marcarComoLida(notificacao.id);
         setNotificacoes(prev => prev.map(n => 
           n.id === notificacao.id ? { ...n, lida: true } : n
         ));
-      } catch (error) {
-        console.error("Erro ao marcar lida:", error);
-      }
+      } catch (error) { console.error("Erro ao marcar lida:", error); }
     }
 
-    // 2. Redirecionamento Inteligente baseado no texto
+    // 2. Lógica de Redirecionamento Baseada no Perfil e Mensagem
     const msg = notificacao.mensagem.toLowerCase();
     
-    // Se for atribuição de serviço para funcionário
-    if (msg.includes("atribuiu um serviço") || msg.includes("atribuiu uma tarefa")) {
-        navigate('/admin/minha-agenda');
-    }
-    // Se for conclusão para agricultor (opcional)
-    else if (msg.includes("concluiu o seu serviço")) {
-        navigate('/produtor/minhas-solicitacoes');
+    // CASO SEJA ADMIN
+    if (perfilLimpo === 'admin' || perfilLimpo === 'administrador') {
+        // Independente de ser atribuição ou conclusão, o Admin gerencia tudo na Central
+        if (msg.includes("atribuiu") || msg.includes("concluiu")) {
+            navigate('/admin/solicitacoes');
+        }
+    } 
+    // CASO SEJA PRODUTOR
+    else if (perfilLimpo === 'produtor') {
+        if (msg.includes("concluiu")) {
+            navigate('/produtor/minhas-solicitacoes');
+        }
+    } 
+    // CASO SEJA TÉCNICO OU OPERADOR
+    else if (perfilLimpo === 'tecnico' || perfilLimpo === 'operador') {
+        if (msg.includes("atribuiu")) {
+            navigate('/admin/minha-agenda');
+        }
     }
   };
 
   const handleLerTodas = async () => {
-    const naoLidasCount = notificacoes.filter(n => !n.lida).length;
-    if (naoLidasCount === 0) return;
-
+    if (notificacoes.filter(n => !n.lida).length === 0) return;
     try {
       setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })));
-      await marcarTodasComoLidas(authData.user.id);
-    } catch (error) {
-      console.error("Erro ao sincronizar leitura em massa", error);
-      carregarNotificacoes(); 
-    }
+      await marcarTodasComoLidas(user.id);
+    } catch (error) { carregarNotificacoes(); }
   };
 
+  const profilePath = location.pathname.includes('/produtor') ? '/produtor/profile' : '/admin/profile';
   const naoLidas = notificacoes.filter(n => !n.lida).length;
 
   return (
@@ -117,7 +130,6 @@ export default function HeaderLinks(props) {
       alignItems="center"
       flexDirection="row"
       bg={menuBg}
-      flexWrap={secondary ? { base: 'wrap', md: 'nowrap' } : 'unset'}
       p="10px"
       borderRadius="30px"
       boxShadow={shadow}
@@ -135,151 +147,58 @@ export default function HeaderLinks(props) {
               h="18px"
               me="10px"
             />
-            {naoLidas > 0 && (
-              <Box
-                position="absolute"
-                top="-2px"
-                right="5px"
-                bg="brand.500"
-                borderRadius="full"
-                w="10px"
-                h="10px"
-                border="2px solid white"
-              />
-            )}
+            {naoLidas > 0 && <Box position="absolute" top="-2px" right="5px" bg="brand.500" borderRadius="full" w="10px" h="10px" border="2px solid white" />}
           </Box>
         </MenuButton>
         <Portal>
-            <MenuList
-            boxShadow={shadow}
-            p="20px"
-            borderRadius="20px"
-            bg={menuBg}
-            border="none"
-            mt="22px"
-            me={{ base: '30px', md: 'unset' }}
-            minW={{ base: 'unset', md: '400px', xl: '450px' }}
-            maxW={{ base: '360px', md: 'unset' }}
-            maxH="400px" 
-            overflowY="auto"
-            zIndex="1500"
-            >
-            <Flex w="100%" mb="20px" alignItems="center">
-                <Text fontSize="md" fontWeight="600" color={textColor}>
-                    Notificações ({naoLidas})
-                </Text>
-            </Flex>
-            <Flex flexDirection="column">
-                {notificacoes.length === 0 ? (
-                <Text fontSize="sm" color="gray.500" p="10px">Nenhuma notificação disponível.</Text>
-                ) : (
-                notificacoes.map((notif) => (
-                    <MenuItem
-                    key={notif.id}
-                    _hover={{ bg: bgHoverNotificacao, cursor: 'pointer' }} 
-                    _focus={{ bg: 'none' }}
-                    px="10px"
-                    py="10px"
-                    borderRadius="8px"
-                    mb="5px"
-                    bg={notif.lida ? "transparent" : bgNotificacaoNaoLida}
-                    
-                    // AQUI ESTÁ A MÁGICA: Clicar dispara a função inteligente
-                    onClick={() => handleNotificacaoClick(notif)}
+            <MenuList boxShadow={shadow} p="20px" borderRadius="20px" bg={menuBg} border="none" mt="22px" minW="400px" maxH="400px" overflowY="auto" zIndex="1500">
+                <Text fontSize="md" fontWeight="600" color={textColor} mb="20px">Notificações ({naoLidas})</Text>
+                {notificacoes.map((notif) => (
+                    <MenuItem 
+                      key={notif.id} 
+                      onClick={() => handleNotificacaoClick(notif)} 
+                      _hover={{ bg: bgHoverNotificacao }} 
+                      borderRadius="8px" 
+                      bg={notif.lida ? "transparent" : bgNotificacaoNaoLida} 
+                      mb="5px"
                     >
-                    <Flex align='center' direction="column" alignItems="flex-start" w="100%">
-                        <Text fontSize='sm' fontWeight={notif.lida ? '400' : '700'} color={textColor}>
-                        {notif.mensagem}
-                        </Text>
-                        <Text fontSize='xs' color="gray.400" mt="1">
-                        {notif.data_criacao ? new Date(notif.data_criacao).toLocaleString() : ''}
-                        </Text>
-                    </Flex>
+                        <Flex direction="column" w="100%">
+                            <Text fontSize='sm' fontWeight={notif.lida ? '400' : '700'} color={textColor}>
+                              {notif.mensagem}
+                            </Text>
+                            <Text fontSize='xs' color="gray.400" mt="1">
+                              {notif.data_criacao ? new Date(notif.data_criacao).toLocaleString() : ''}
+                            </Text>
+                        </Flex>
                     </MenuItem>
-                ))
-                )}
-            </Flex>
+                ))}
             </MenuList>
         </Portal>
       </Menu>
 
-      <Button
-        variant="no-hover"
-        bg="transparent"
-        p="0px"
-        minW="unset"
-        minH="unset"
-        h="18px"
-        w="max-content"
-        onClick={toggleColorMode}
-      >
-        <Icon
-          me="10px"
-          h="18px"
-          w="18px"
-          color={navbarIcon}
-          as={colorMode === 'light' ? IoMdMoon : IoMdSunny}
-        />
+      <Button variant="no-hover" bg="transparent" p="0px" onClick={toggleColorMode}>
+        <Icon h="18px" w="18px" color={navbarIcon} as={colorMode === 'light' ? IoMdMoon : IoMdSunny} />
       </Button>
 
       <Menu>
         <MenuButton p="0px">
-          <Avatar
-            _hover={{ cursor: 'pointer' }}
-            color="white"
-            name={authData?.user?.nome || 'Utilizador'}
-            bg="#11047A"
-            size="sm"
-            w="40px"
-            h="40px"
-          />
+          <Avatar _hover={{ cursor: 'pointer' }} name={user?.nome} bg="#11047A" size="sm" w="40px" h="40px" />
         </MenuButton>
         <Portal>
-            <MenuList
-            boxShadow={shadow}
-            p="0px"
-            mt="10px"
-            borderRadius="20px"
-            bg={menuBg}
-            border="none"
-            zIndex="1500"
-            >
-            <Flex w="100%" mb="0px">
-                <Text
-                ps="20px"
-                pt="16px"
-                pb="10px"
-                w="100%"
-                borderBottom="1px solid"
-                borderColor={useColorModeValue('gray.200', 'whiteAlpha.300')}
-                fontSize="sm"
-                fontWeight="700"
-                color={textColor}
-                >
-                👋&nbsp; Olá, {authData?.user?.nome || 'Utilizador'}
+            <MenuList boxShadow={shadow} p="0px" mt="10px" borderRadius="20px" bg={menuBg} border="none" zIndex="1500">
+            <Flex direction="column" px="20px" pt="16px" pb="10px" borderBottom="1px solid" borderColor={borderColor}>
+                <Text fontSize="sm" fontWeight="700" color={textColor}>👋&nbsp; Olá, {user?.nome || 'Utilizador'}</Text>
+                <Text fontSize="xs" color="gray.400" mt="2px" fontWeight="500">
+                    {nomeCargo}
                 </Text>
             </Flex>
-            <Flex flexDirection="column" p="10px">
-                <MenuItem
-                _hover={{ bg: 'none' }}
-                _focus={{ bg: 'none' }}
-                borderRadius="8px"
-                px="14px"
-                as={NavLink}
-                to={profilePath}
-                >
-                <Text fontSize="sm">Configurações do Perfil</Text>
-                </MenuItem>
 
-                <MenuItem
-                _hover={{ bg: 'none' }}
-                _focus={{ bg: 'none' }}
-                color="red.400"
-                borderRadius="8px"
-                px="14px"
-                onClick={logout}
-                >
-                <Text fontSize="sm">Sair</Text>
+            <Flex flexDirection="column" p="10px">
+                <MenuItem _hover={{ bg: 'none' }} borderRadius="8px" px="14px" as={NavLink} to={profilePath}>
+                  <Text fontSize="sm">Configurações do Perfil</Text>
+                </MenuItem>
+                <MenuItem _hover={{ bg: 'none' }} color="red.400" borderRadius="8px" px="14px" onClick={logout}>
+                  <Text fontSize="sm">Sair</Text>
                 </MenuItem>
             </Flex>
             </MenuList>
@@ -291,8 +210,4 @@ export default function HeaderLinks(props) {
 
 HeaderLinks.propTypes = {
   secondary: PropTypes.bool,
-  fixed: PropTypes.bool,
-  onOpen: PropTypes.func,
-  logoText: PropTypes.string,
-  scrolled: PropTypes.bool
 };
