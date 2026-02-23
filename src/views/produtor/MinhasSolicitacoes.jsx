@@ -49,7 +49,7 @@ export default function MinhasSolicitacoes() {
     } finally {
       setLoading(false);
     }
-  }, [authData, agricultorLogado, userLogado, toast]);
+  }, [agricultorLogado, userLogado, toast]);
 
   useEffect(() => { fetchPageData(); }, [fetchPageData]);
 
@@ -82,7 +82,14 @@ export default function MinhasSolicitacoes() {
     }
   };
 
-  const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('pt-BR') : "---";
+  // Substitui a antiga por esta:
+const formatDate = (dateString) => {
+  if (!dateString) return "---";
+  // Se o Python já enviou formatado com barra (ex: 23/02/2026), devolve diretamente
+  if (dateString.includes('/')) return dateString; 
+  // Se por acaso vier no formato ISO do banco, ele converte
+  return new Date(dateString).toLocaleDateString('pt-BR');
+};
   
   const getStatusBadge = (status) => {
     const s = status?.toUpperCase();
@@ -128,7 +135,7 @@ export default function MinhasSolicitacoes() {
                   <Td>{formatDate(sol.data_execucao)}</Td>
                   <Td>{getStatusBadge(sol.status)}</Td>
                   <Td borderColor={borderColor} textAlign="center">
-                    {sol.status === 'PENDENTE' ? (
+                    {sol.status?.toUpperCase().trim() === 'PENDENTE' ? (
                         <Flex justify="center" gap="10px">
                             <Tooltip label="Editar Pedido">
                                 <IconButton icon={<MdEdit />} colorScheme="brand" size="sm" isRound 
