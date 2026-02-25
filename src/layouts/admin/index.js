@@ -9,6 +9,11 @@ import Footer from 'components/footer/FooterAdmin';
 import routes from 'routes.js';
 import { useAuth } from 'contexts/AuthContext';
 
+// --- 1. IMPORTAÇÃO MANUAL DAS PÁGINAS ---
+import Sobre from 'views/Sobre';
+import Contato from 'views/Contato';
+import Politica from 'views/Politica';
+
 export default function AdminLayout(props) {
   const { ...rest } = props;
   const location = useLocation();
@@ -21,6 +26,7 @@ export default function AdminLayout(props) {
     const activeRoute = routes.find(
       (route) => window.location.href.indexOf(route.layout + route.path) !== -1
     );
+    // Se não achar a rota (ex: Sobre/Contato), mantém o título atual ou define um genérico
     setBrandText(activeRoute ? activeRoute.name : 'Gestão Rural');
   }, [location]);
 
@@ -57,6 +63,7 @@ export default function AdminLayout(props) {
         />
         <Box mx="auto" p={{ base: '20px', md: '30px' }} pe="20px" minH="calc(100vh - 120px)">
           <Routes>
+            {/* Rotas automáticas vindas do routes.js (Menu Lateral) */}
             {getActiveRoutes(routes).map((prop, key) => (
               <Route
                 path={prop.path}
@@ -64,10 +71,18 @@ export default function AdminLayout(props) {
                 key={key}
               />
             ))}
-            <Route path="*" element={<Navigate to="/admin/default" replace />} />
+
+            {/* --- 2. ROTAS MANUAIS CORRIGIDAS (Sem a barra /) --- */}
+            <Route path="sobre" element={<Sobre />} />
+            <Route path="contato" element={<Contato />} />
+            <Route path="politica" element={<Politica />} />
+
+            {/* Rota padrão se nada for encontrado */}
+            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Routes>
         </Box>
         <Box>
+           {/* Lembre-se de atualizar o FooterAdmin.js com os links também! */}
           <Footer />
         </Box>
       </Box>

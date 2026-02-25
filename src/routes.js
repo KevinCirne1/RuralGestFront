@@ -4,7 +4,7 @@ import React from 'react';
 import { Icon } from '@chakra-ui/react';
 import { 
   MdPerson, MdHome, MdLandscape, MdBuild, MdLock, 
-  MdAssignment, MdList, MdPeople, MdDirectionsCar, MdSchedule 
+  MdAssignment, MdList, MdPeople, MdDirectionsCar, MdSchedule
 } from 'react-icons/md';
 
 // Admin Imports
@@ -28,8 +28,12 @@ import MinhasSolicitacoes from 'views/produtor/MinhasSolicitacoes';
 //Agenda dos funcionários
 import MinhaAgenda from "views/admin/minhaAgenda";
 
+// NOTA: As páginas Sobre, Contato e Politica foram removidas daqui
+// para não aparecerem no menu lateral. Elas serão importadas
+// diretamente no arquivo de Layout (src/layouts/admin/index.js).
+
 const routes = [
-  //ROTAS EXCLUSIVAS DO ADMIN
+  // --- ROTAS EXCLUSIVAS DO ADMIN ---
   {
     name: 'Painel Administrativo',
     layout: '/admin',
@@ -87,7 +91,7 @@ const routes = [
     roles: ['admin']
   },
 
-  //ROTA EXCLUSIVA PARA TÉCNICOS / MOTORISTAS 
+  // --- ROTA EXCLUSIVA PARA TÉCNICOS / MOTORISTAS ---
   {
     name: 'Minha Agenda',
     layout: '/admin',
@@ -97,7 +101,7 @@ const routes = [
     roles: ['tecnico', 'operador'] 
   },
 
-  //ROTAS DO PRODUTOR 
+  // --- ROTAS DO PRODUTOR ---
   {
     name: 'Painel do Produtor',
     layout: '/produtor',
@@ -115,7 +119,7 @@ const routes = [
     roles: ['produtor', 'agricultor']
   },
 
-  //ROTA DE PERFIL
+  // --- ROTAS DE PERFIL ---
   {
     name: 'Meu Perfil',
     layout: '/admin',
@@ -133,7 +137,7 @@ const routes = [
     roles: ['produtor', 'agricultor']
   },
 
-  //ROTAS DE AUTENTICAÇÃO 
+  // --- ROTAS DE AUTENTICAÇÃO ---
   {
     name: 'Sign In',
     layout: '/auth',
