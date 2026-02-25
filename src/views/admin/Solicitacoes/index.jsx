@@ -173,7 +173,7 @@ export default function SolicitacoesPage() {
       await api.delete(`/solicitacoes/${solicitacaoParaDeletar.id}`);
       toast({ title: "Registro excluído!", status: "success" });
       fetchData(); alertDelete.onClose();
-    } catch (error) { toast({ title: "Erro ao excluir.", status: "error" }); }
+    } catch (error) { toast({ title: "Não é possível excluir uma solicitação concluída ou em andamento.", status: "error" }); }
   };
 
   const getStatusColor = (status) => {

@@ -25,6 +25,20 @@ export default function MinhaAgenda() {
   // Pega o ID do motorista/técnico que logou
   const userId = localStorage.getItem('user_id'); 
 
+  // --- FUNÇÃO SEGURA PARA FORMATAR DATA ---
+  // Isso impede o erro "RangeError: Invalid time value"
+  const formatarData = (dataISO) => {
+    if (!dataISO) return 'A definir'; // Se for nulo ou vazio
+    
+    const dataObj = new Date(dataISO);
+    // Verifica se a data é válida antes de formatar
+    if (isNaN(dataObj.getTime())) {
+      return 'Data Inválida'; 
+    }
+    
+    return format(dataObj, 'dd/MM/yyyy');
+  };
+
   const carregarAgenda = useCallback(async () => {
     try {
       setLoading(true);
@@ -119,7 +133,8 @@ export default function MinhaAgenda() {
               <Flex align='center'>
                 <Icon as={MdAccessTime} color='gray.400' mr='2' boxSize={5}/>
                 <Text fontSize='sm'>
-                  <b>Data:</b> {sol.data_execucao ? format(new Date(sol.data_execucao), 'dd/MM/yyyy') : 'A definir'}
+                  {/* AQUI ESTAVA O ERRO: Agora usamos a função segura */}
+                  <b>Data:</b> {formatarData(sol.data_execucao)}
                 </Text>
               </Flex>
 
