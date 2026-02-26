@@ -6,6 +6,7 @@ import {
   useColorModeValue,
   Stack, 
 } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom"; // <--- IMPORTANTE: Importar isso!
 
 export default function Footer() {
   const textColor = useColorModeValue("gray.400", "white");
@@ -25,7 +26,7 @@ export default function Footer() {
       px={{ base: "30px", md: "50px" }}
       pb='30px'
     >
-      {/*COPYRIGHT E ATRIBUIÇÃO */}
+      {/* COPY E ATRIBUIÇÃO */}
       <Text
         color={textColor}
         textAlign={{
@@ -34,7 +35,7 @@ export default function Footer() {
         }}
         mb={{ base: "20px", xl: "0px" }}
       >
-        © {new Date().getFullYear()} Sistema de Gestão Rural – Pirpirituba.
+        &copy; {new Date().getFullYear()} Sistema de Gestão Rural – Pirpirituba.
         <Text as='span' fontWeight='500' ms='4px'>
           Desenvolvido com base no template Horizon UI Chakra.
         </Text>
@@ -45,14 +46,33 @@ export default function Footer() {
         spacing={{ base: '10px', lg: '44px' }}     
         alignItems="center"                        
       >
-
-        <Link fontWeight='500' color={textColor} href='#/contato'>
+        {/* LINK 1: CONTATO */}
+        <Link 
+          as={RouterLink}             // Usa o RouterLink para não recarregar a página
+          to='/admin/contato'         // Caminho exato definido no AdminLayout
+          fontWeight='500' 
+          color={textColor}
+        >
           Contato
         </Link>
-        <Link fontWeight='500' color={textColor} href='#/sobre-o-projeto'>
+
+        {/* LINK 2: SOBRE */}
+        <Link 
+          as={RouterLink} 
+          to='/admin/sobre'           // Caminho exato (note que não é 'sobre-o-projeto')
+          fontWeight='500' 
+          color={textColor}
+        >
           Sobre o Projeto
         </Link>
-        <Link fontWeight='500' color={textColor} href='#/politica-de-privacidade'>
+
+        {/* LINK 3: POLÍTICA */}
+        <Link 
+          as={RouterLink} 
+          to='/admin/politica'        // Caminho exato
+          fontWeight='500' 
+          color={textColor}
+        >
           Política de Privacidade
         </Link>
       </Stack>

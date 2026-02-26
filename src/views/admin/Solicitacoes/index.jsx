@@ -1,15 +1,51 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Box, Flex, Button, Text, useColorModeValue, SimpleGrid,
-  Icon, Badge, useDisclosure, Modal, ModalOverlay, ModalContent,
-  ModalHeader, ModalCloseButton, ModalBody, ModalFooter,
-  FormControl, FormLabel, Select, Textarea, Input, useToast, Spinner,
-  AlertDialog, AlertDialogOverlay, AlertDialogContent, AlertDialogHeader, AlertDialogBody, AlertDialogFooter,
-  IconButton, Tooltip, InputGroup, InputLeftElement, Divider
+  Box,
+  Flex,
+  Button,
+  Text,
+  useColorModeValue,
+  SimpleGrid,
+  Icon,
+  Badge,
+  useDisclosure,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  ModalFooter,
+  FormControl,
+  FormLabel,
+  Select,
+  Textarea,
+  Input,
+  useToast,
+  Spinner,
+  AlertDialog,
+  AlertDialogOverlay,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogBody,
+  AlertDialogFooter,
+  IconButton,
+  Tooltip,
+  InputGroup,
+  InputLeftElement,
+  Divider
 } from "@chakra-ui/react";
 import { 
-  MdAdd, MdEdit, MdPrint, MdEvent, 
-  MdPerson, MdDelete, MdChatBubbleOutline, MdCheckCircle, MdSearch, MdPersonAdd 
+  MdAdd, 
+  MdEdit, 
+  MdPrint, 
+  MdEvent, 
+  MdPerson, 
+  MdDelete, 
+  MdChatBubbleOutline, 
+  MdCheckCircle, 
+  MdSearch, 
+  MdPersonAdd 
 } from "react-icons/md";
 import Card from "components/card/Card.js";
 import { Formik, Form, Field } from 'formik';
@@ -49,26 +85,47 @@ export default function SolicitacoesPage() {
   const [tecnicoSelecionado, setTecnicoSelecionado] = useState("");
   const [solicitacaoParaAtribuir, setSolicitacaoParaAtribuir] = useState(null);
 
+  // --- DESIGN: CORES DINÂMICAS PARA MODO CLARO/ESCURO ---
   const textColor = useColorModeValue("secondaryGray.900", "white");
   const borderColor = useColorModeValue("gray.100", "whiteAlpha.100");
   const bgInput = useColorModeValue("white", "navy.800"); 
   const bgDisabled = useColorModeValue("gray.100", "navy.700"); 
-  
-  const bgObsAgricultor = useColorModeValue("brand.50", "rgba(66, 42, 244, 0.1)");
-  const bgRetornoEquipe = useColorModeValue("green.50", "rgba(72, 187, 120, 0.1)"); 
+
+  // Ajuste nos fundos das observações
+  const bgRetornoEquipe = useColorModeValue("green.50", "whiteAlpha.100"); 
+  const bgObsAgricultor = useColorModeValue("brand.50", "whiteAlpha.100");
+
+  // Ajuste nas cores das fontes dentro das observações
+  const titleRetornoColor = useColorModeValue("green.800", "green.300");
+  const textRetornoColor = useColorModeValue("green.700", "gray.100");
+  const titleAgriColor = useColorModeValue("brand.800", "brand.300");
+  const textAgriColor = useColorModeValue("brand.700", "gray.100");
 
   const toast = useToast();
+
+  const formatarData = (dataISO) => {
+    if (!dataISO) return '-';
+    if (dataISO.includes('/') && dataISO.length === 10) return dataISO;
+    const dataTratada = typeof dataISO === 'string' ? dataISO.replace(' ', 'T') : dataISO;
+    const dataObj = new Date(dataTratada);
+    if (isNaN(dataObj.getTime())) return dataISO;
+    return format(dataObj, 'dd/MM/yyyy');
+  };
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [reqSol, reqServ, reqVeic, reqProp, reqAgri, reqUsers] = await Promise.all([
-        api.get('/solicitacoes'), api.get('/servicos'), api.get('/veiculos'),
-        api.get('/propriedades'), api.get('/agricultores'), api.get('/usuarios') 
+        api.get('/solicitacoes'), 
+        api.get('/servicos'), 
+        api.get('/veiculos'),
+        api.get('/propriedades'), 
+        api.get('/agricultores'), 
+        api.get('/usuarios') 
       ]);
       
       const sortedSolicitacoes = (reqSol.data || []).sort((a, b) => {
-         return new Date(b.data_solicitacao) - new Date(a.data_solicitacao);
+          return new Date(b.data_solicitacao) - new Date(a.data_solicitacao);
       });
 
       setSolicitacoes(sortedSolicitacoes);
@@ -77,25 +134,29 @@ export default function SolicitacoesPage() {
       setPropriedades(reqProp.data || []);
       setAgricultores(reqAgri.data || []);
       setEquipe((reqUsers.data || []).filter(u => u.perfil === 'tecnico' || u.perfil === 'operador'));
-    } catch (error) { toast({ title: "Erro de conexão", status: "error" }); }
-    finally { setLoading(false); }
+    } catch (error) { 
+      toast({ title: "Erro de conexão", status: "error" }); 
+    } finally { 
+      setLoading(false); 
+    }
   }, [toast]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSubmit = async (values, actions) => {
     const servicoRegra = servicos.find(s => s.id == values.servico_id);
+    const statusUpper = values.status?.toUpperCase();
 
     if (
-        solicitacaoSelecionada && 
-        values.status === 'CONCLUÍDA' && 
+        (statusUpper === 'CONCLUÍDA' || statusUpper === 'EM ANDAMENTO') && 
         servicoRegra?.requer_funcionario !== false && 
-        !solicitacaoSelecionada.operador_id
+        !values.veiculo_id && 
+        !solicitacaoSelecionada?.operador_id
     ) {
         toast({ 
             title: "Atribuição Obrigatória", 
-            description: `O serviço "${servicoRegra?.nome_servico}" exige um funcionário responsável. Atribua alguém antes de concluir.`, 
-            status: "error", 
+            description: `Atribua um funcionário antes de alterar para "${values.status}".`, 
+            status: "warning", 
             duration: 6000, 
             isClosable: true 
         });
@@ -114,21 +175,11 @@ export default function SolicitacoesPage() {
       fetchData(); 
       onClose();
     } catch (error) { 
-        if (error.response && error.response.status === 409) {
-            toast({ 
-                title: "Atenção: Pedido Duplicado", 
-                description: error.response.data.message || "Você já tem um pedido em aberto.", 
-                status: "warning", 
-                duration: 6000, 
-                isClosable: true 
-            });
-        } else {
-            toast({ 
-                title: "Erro ao salvar.", 
-                description: error.response?.data?.message || "Verifique os dados.",
-                status: "error" 
-            }); 
-        }
+        toast({ 
+            title: "Erro ao salvar.", 
+            description: error.response?.data?.message || "Verifique os dados.",
+            status: "error" 
+        }); 
     } finally { 
         actions.setSubmitting(false); 
     }
@@ -142,13 +193,10 @@ export default function SolicitacoesPage() {
 
   const handleSalvarAtribuicao = async () => {
     try {
-      const operadorId = tecnicoSelecionado === "" ? null : tecnicoSelecionado;
-
       await api.put(`/solicitacoes/${solicitacaoParaAtribuir.id}`, { 
-          operador_id: operadorId, 
+          operador_id: tecnicoSelecionado || null, 
           status: 'EM ANDAMENTO' 
       });
-      
       toast({ title: "Situação atualizada!", status: "success" });
       fetchData(); 
       modalAtribuir.onClose();
@@ -163,8 +211,11 @@ export default function SolicitacoesPage() {
       const resDownload = await api.get(`/documentos/download/${resGerar.data.id}`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([resDownload.data]));
       const link = document.createElement('a');
-      link.href = url; link.setAttribute('download', `${tipoDoc}_${solicitacao.id}.pdf`);
-      document.body.appendChild(link); link.click(); link.remove();
+      link.href = url; 
+      link.setAttribute('download', `${tipoDoc}_${solicitacao.id}.pdf`);
+      document.body.appendChild(link); 
+      link.click(); 
+      link.remove();
     } catch (error) { toast({ title: "Falha ao gerar documento.", status: "error" }); }
   };
 
@@ -172,8 +223,11 @@ export default function SolicitacoesPage() {
     try {
       await api.delete(`/solicitacoes/${solicitacaoParaDeletar.id}`);
       toast({ title: "Registro excluído!", status: "success" });
-      fetchData(); alertDelete.onClose();
-    } catch (error) { toast({ title: "Erro ao excluir.", status: "error" }); }
+      fetchData(); 
+      alertDelete.onClose();
+    } catch (error) { 
+        toast({ title: "Erro ao excluir.", description: "Verifique vínculos.", status: "error" }); 
+    }
   };
 
   const getStatusColor = (status) => {
@@ -202,21 +256,27 @@ export default function SolicitacoesPage() {
     <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
       <Flex justify='space-between' align='center' mb='20px'>
         <Text fontSize='2xl' fontWeight='700' color={textColor}>Central de Solicitações</Text>
-        <Button leftIcon={<MdAdd />} colorScheme='brand' onClick={() => { setSolicitacaoSelecionada(null); onOpen(); }}>
+        <Button 
+          leftIcon={<MdAdd />} 
+          colorScheme='brand' 
+          onClick={() => { setSolicitacaoSelecionada(null); onOpen(); }}
+        >
           Nova Demanda
         </Button>
       </Flex>
 
       <InputGroup mb="20px">
-        <InputLeftElement pointerEvents='none'><Icon as={MdSearch} color='gray.300' /></InputLeftElement>
+        <InputLeftElement pointerEvents='none'>
+          <Icon as={MdSearch} color='gray.300' />
+        </InputLeftElement>
         <Input 
-            placeholder="Buscar por agricultor, serviço, status ou propriedade..." 
-            value={busca} 
-            onChange={(e) => setBusca(e.target.value)} 
-            borderRadius="10px" 
-            bg={bgInput} 
-            border="1px solid" 
-            borderColor={borderColor} 
+          placeholder="Buscar por agricultor, serviço, status ou propriedade..." 
+          value={busca} 
+          onChange={(e) => setBusca(e.target.value)} 
+          borderRadius="10px" 
+          bg={bgInput} 
+          border="1px solid" 
+          borderColor={borderColor} 
         />
       </InputGroup>
 
@@ -233,10 +293,25 @@ export default function SolicitacoesPage() {
           })
           .map((sol) => {
             const jaAtribuido = !!sol.operador_id;
+            const servicoObj = servicos.find(s => s.id === sol.servico?.id);
+            const exigeFuncionario = servicoObj?.requer_funcionario !== false;
+            
+            const statusAtual = sol.status?.toUpperCase();
+            
+            const podeEditar = statusAtual === 'PENDENTE' || statusAtual === 'EM ANDAMENTO';
+            const podeExcluir = statusAtual === 'PENDENTE';
+
             return (
               <Card key={sol.id} p='20px' display='flex' flexDirection='column'>
                 <Flex justify='space-between' mb='10px'>
-                  <Badge colorScheme={getStatusColor(sol.status)} borderRadius='8px' px='10px' py='5px'>{sol.status}</Badge>
+                  <Badge 
+                    colorScheme={getStatusColor(sol.status)} 
+                    borderRadius='8px' 
+                    px='10px' 
+                    py='5px'
+                  >
+                    {sol.status}
+                  </Badge>
                   <Text fontSize='xs' color='gray.400'>#{sol.id}</Text>
                 </Flex>
 
@@ -253,33 +328,27 @@ export default function SolicitacoesPage() {
                   <Text fontSize='sm' color='gray.500'>Local: <b>{sol.propriedade?.terreno}</b></Text>
                   
                   <Text fontSize='sm' color='gray.500' mt="1">
-                    Pedido: <b>{sol.data_solicitacao ? (sol.data_solicitacao.includes('/') ? sol.data_solicitacao : format(new Date(sol.data_solicitacao), 'dd/MM/yyyy')) : '-'}</b>
+                    Pedido: <b>{formatarData(sol.data_solicitacao)}</b>
                   </Text>
 
-                  {/* --- DATA DE EXECUÇÃO CORRIGIDA --- */}
                   {sol.status === 'CONCLUÍDA' && sol.data_execucao && (
                     <Flex align="center" mt="1">
-                       <Icon as={MdCheckCircle} color="green.500" w="12px" h="12px" mr="1" />
-                       <Text fontSize='sm' color='green.600' fontWeight="bold">
-                          Executado em: {
-                              sol.data_execucao.includes('/') 
-                                ? sol.data_execucao 
-                                : format(new Date(sol.data_execucao), 'dd/MM/yyyy')
-                          }
-                       </Text>
+                        <Icon as={MdCheckCircle} color="green.500" w="12px" h="12px" mr="1" />
+                        <Text fontSize='sm' color='green.600' fontWeight="bold">
+                          Executado em: {formatarData(sol.data_execucao)}
+                        </Text>
                     </Flex>
                   )}
-                  {/* ---------------------------------- */}
 
                   {sol.observacao && (
                     <Box mt="3" p="2" bg={bgObsAgricultor} borderRadius="md" borderLeft="3px solid" borderColor="brand.500">
                       <Flex align="center" mb="1">
                         <Icon as={MdChatBubbleOutline} color="brand.500" mr="1" w="12px" h="12px" />
-                        <Text fontSize='xs' fontWeight="bold" color="brand.800" textTransform="uppercase">
+                        <Text fontSize='xs' fontWeight="bold" color={titleAgriColor} textTransform="uppercase">
                           Pedido do Agricultor:
                         </Text>
                       </Flex>
-                      <Text fontSize='sm' color="brand.700" fontStyle="italic">"{sol.observacao}"</Text>
+                      <Text fontSize='sm' color={textAgriColor} fontStyle="italic">"{sol.observacao}"</Text>
                     </Box>
                   )}
 
@@ -299,42 +368,75 @@ export default function SolicitacoesPage() {
                     <Box mt="3" p="3" bg={bgRetornoEquipe} borderLeft="4px solid" borderColor="green.400" borderRadius="sm">
                       <Flex align="center" mb="1">
                         <Icon as={MdCheckCircle} color="green.400" mr="1" w="14px" h="14px" />
-                        <Text fontSize='xs' fontWeight="bold" color="green.800" textTransform="uppercase">Retorno da Equipe:</Text>
+                        <Text fontSize='xs' fontWeight="bold" color={titleRetornoColor} textTransform="uppercase">Retorno da Equipe:</Text>
                       </Flex>
-                      <Text fontSize='sm' color="green.700" fontStyle="italic">"{sol.observacao_funcionario}"</Text>
+                      <Text fontSize='sm' color={textRetornoColor} fontStyle="italic">"{sol.observacao_funcionario}"</Text>
                     </Box>
                   )}
                 </Box>
 
                 <Flex justify='space-between' mt='auto' gap="8px" pt="4" borderTop="1px solid" borderColor={borderColor}>
-                  <Button 
-                    leftIcon={jaAtribuido ? <MdCheckCircle /> : <MdPersonAdd />} 
-                    size='sm' 
-                    colorScheme={jaAtribuido ? 'green' : 'purple'} 
-                    variant='solid'
-                    flex="1" 
-                    isDisabled={jaAtribuido}
-                    _disabled={{
-                        bg: 'green.500',   
-                        color: 'white',    
-                        cursor: 'not-allowed', 
-                        opacity: 1,        
-                        boxShadow: 'none'
-                    }}
-                    onClick={() => !jaAtribuido && handleOpenAtribuir(sol)}
-                  >
-                    {jaAtribuido ? "Atribuído" : "Atribuir"}
-                  </Button>
                   
-                  <Tooltip label="Editar"><IconButton size='sm' colorScheme='brand' icon={<MdEdit />} onClick={() => { setSolicitacaoSelecionada(sol); onOpen(); }} /></Tooltip>
-                  <Tooltip label="Excluir"><IconButton size='sm' colorScheme='red' icon={<MdDelete />} onClick={() => { setSolicitacaoParaDeletar(sol); alertDelete.onOpen(); }} /></Tooltip>
-                  <Tooltip label="Imprimir"><IconButton size='sm' colorScheme='orange' icon={<MdPrint />} onClick={() => handleImprimir(sol)} /></Tooltip>
+                  {exigeFuncionario ? (
+                    <Button 
+                        leftIcon={jaAtribuido ? <MdCheckCircle /> : <MdPersonAdd />} 
+                        size='sm' 
+                        colorScheme={jaAtribuido ? 'green' : 'purple'} 
+                        variant='solid'
+                        flex="1" 
+                        isDisabled={jaAtribuido}
+                        _disabled={{
+                            bg: 'green.500',   
+                            color: 'white',    
+                            cursor: 'not-allowed', 
+                            opacity: 1,        
+                            boxShadow: 'none'
+                        }}
+                        onClick={() => !jaAtribuido && handleOpenAtribuir(sol)}
+                    >
+                        {jaAtribuido ? "Atribuído" : "Atribuir"}
+                    </Button>
+                  ) : (
+                    <Box flex="1" />
+                  )}
+                  
+                  {podeEditar && (
+                    <Tooltip label="Editar">
+                        <IconButton 
+                          size='sm' 
+                          colorScheme='brand' 
+                          icon={<MdEdit />} 
+                          onClick={() => { setSolicitacaoSelecionada(sol); onOpen(); }} 
+                        />
+                    </Tooltip>
+                  )}
+
+                  {podeExcluir && (
+                    <Tooltip label="Excluir">
+                        <IconButton 
+                          size='sm' 
+                          colorScheme='red' 
+                          icon={<MdDelete />} 
+                          onClick={() => { setSolicitacaoParaDeletar(sol); alertDelete.onOpen(); }} 
+                        />
+                    </Tooltip>
+                  )}
+                  
+                  <Tooltip label="Imprimir">
+                    <IconButton 
+                      size='sm' 
+                      colorScheme='orange' 
+                      icon={<MdPrint />} 
+                      onClick={() => handleImprimir(sol)} 
+                    />
+                  </Tooltip>
                 </Flex>
               </Card>
             );
           })}
       </SimpleGrid>
 
+      {/* MODAL DE EDIÇÃO/CRIAÇÃO */}
       <Modal isOpen={isOpen} onClose={onClose} size='lg'>
         <ModalOverlay />
         <ModalContent>
@@ -368,8 +470,15 @@ export default function SolicitacoesPage() {
                       {({ field }) => (
                           <FormControl mb={4} isRequired>
                               <FormLabel>Agricultor</FormLabel>
-                              <Select {...field} placeholder="Selecione..." disabled={!!solicitacaoSelecionada} bg={!!solicitacaoSelecionada ? bgDisabled : bgInput}>
-                                  {agricultores.map(ag => <option key={ag.id} value={ag.id}>{ag.nome}</option>)}
+                              <Select 
+                                {...field} 
+                                placeholder="Selecione..." 
+                                disabled={!!solicitacaoSelecionada} 
+                                bg={!!solicitacaoSelecionada ? bgDisabled : bgInput}
+                              >
+                                  {agricultores.map(ag => (
+                                    <option key={ag.id} value={ag.id}>{ag.nome}</option>
+                                  ))}
                               </Select>
                           </FormControl>
                       )}
@@ -379,10 +488,17 @@ export default function SolicitacoesPage() {
                       {({ field }) => (
                           <FormControl mb={4} isRequired>
                               <FormLabel>Propriedade</FormLabel>
-                              <Select {...field} placeholder="Selecione..." disabled={!!solicitacaoSelecionada} bg={!!solicitacaoSelecionada ? bgDisabled : bgInput}>
+                              <Select 
+                                {...field} 
+                                placeholder="Selecione..." 
+                                disabled={!!solicitacaoSelecionada} 
+                                bg={!!solicitacaoSelecionada ? bgDisabled : bgInput}
+                              >
                                   {propriedades
                                       .filter(p => !props.values.agricultor_id || String(p.agricultor_id) === String(props.values.agricultor_id))
-                                      .map(p => <option key={p.id} value={p.id}>{p.terreno}</option>)
+                                      .map(p => (
+                                        <option key={p.id} value={p.id}>{p.terreno}</option>
+                                      ))
                                   }
                               </Select>
                               {!props.values.agricultor_id && <Text fontSize="xs" color="red.300">Selecione um agricultor primeiro.</Text>}
@@ -394,8 +510,15 @@ export default function SolicitacoesPage() {
                       {({ field }) => (
                           <FormControl mb={4} isRequired>
                               <FormLabel>Serviço</FormLabel>
-                              <Select {...field} placeholder="Selecione..." disabled={!!solicitacaoSelecionada} bg={!!solicitacaoSelecionada ? bgDisabled : bgInput}>
-                                  {servicos.map(s => <option key={s.id} value={s.id}>{s.nome_servico}</option>)}
+                              <Select 
+                                {...field} 
+                                placeholder="Selecione..." 
+                                disabled={!!solicitacaoSelecionada} 
+                                bg={!!solicitacaoSelecionada ? bgDisabled : bgInput}
+                              >
+                                  {servicos.map(s => (
+                                    <option key={s.id} value={s.id}>{s.nome_servico}</option>
+                                  ))}
                               </Select>
                           </FormControl>
                       )}
@@ -411,23 +534,16 @@ export default function SolicitacoesPage() {
                   </Field>
                   
                   <Divider mb={4} />
-                  
-                  {!solicitacaoSelecionada && (
-                    <Field name="observacao">
-                        {({ field }) => (
-                            <FormControl mb={4}>
-                                <FormLabel color="brand.500">Pedido do Agricultor (Observação)</FormLabel>
-                                <Textarea {...field} placeholder="Digite aqui o que o agricultor solicitou..." bg={bgInput} />
-                            </FormControl>
-                        )}
-                    </Field>
-                  )}
 
                   <Field name="observacoes">
                       {({ field }) => (
                           <FormControl mb={4}>
                               <FormLabel>Notas da Secretaria (Interno)</FormLabel>
-                              <Textarea {...field} placeholder="Detalhes para a equipe..." bg={bgInput} />
+                              <Textarea 
+                                {...field} 
+                                placeholder="Detalhes para a equipe..." 
+                                bg={bgInput} 
+                              />
                           </FormControl>
                       )}
                   </Field>
@@ -436,7 +552,11 @@ export default function SolicitacoesPage() {
                 
                 <ModalFooter>
                     <Button mr={3} onClick={onClose}>Cancelar</Button>
-                    <Button colorScheme='brand' type='submit' isLoading={props.isSubmitting}>
+                    <Button 
+                      colorScheme='brand' 
+                      type='submit' 
+                      isLoading={props.isSubmitting}
+                    >
                         Salvar Alterações
                     </Button>
                 </ModalFooter>
@@ -446,6 +566,7 @@ export default function SolicitacoesPage() {
         </ModalContent>
       </Modal>
 
+      {/* MODAL ATRIBUIR TÉCNICO */}
       <Modal isOpen={modalAtribuir.isOpen} onClose={modalAtribuir.onClose}>
         <ModalOverlay />
         <ModalContent>
@@ -453,9 +574,7 @@ export default function SolicitacoesPage() {
           <ModalCloseButton />
           <ModalBody>
             <Text mb={2} fontSize="sm" color="gray.500">
-                Selecione o funcionário que será responsável por executar este serviço.
-                <br/>
-                <b>Nota:</b> Se o serviço for administrativo ou auto-atendimento, esta atribuição pode ser opcional.
+                Selecione o funcionário responsável.
             </Text>
             <Select 
                 placeholder="Selecione o técnico..." 
@@ -479,12 +598,17 @@ export default function SolicitacoesPage() {
         </ModalContent>
       </Modal>
 
-      <AlertDialog isOpen={alertDelete.isOpen} leastDestructiveRef={cancelRef} onClose={alertDelete.onClose}>
+      {/* ALERTA DE EXCLUSÃO */}
+      <AlertDialog 
+        isOpen={alertDelete.isOpen} 
+        leastDestructiveRef={cancelRef} 
+        onClose={alertDelete.onClose}
+      >
         <AlertDialogOverlay>
             <AlertDialogContent>
                 <AlertDialogHeader fontSize='lg' fontWeight='bold'>Excluir Registro</AlertDialogHeader>
                 <AlertDialogBody>
-                    Tem certeza? Essa ação não pode ser desfeita e removerá o histórico deste atendimento.
+                    Tem certeza? Essa ação não pode ser desfeita.
                 </AlertDialogBody>
                 <AlertDialogFooter>
                     <Button ref={cancelRef} onClick={alertDelete.onClose}>Sair</Button>

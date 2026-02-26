@@ -34,6 +34,28 @@ export default function HeaderLinks(props) {
   const [notificacoes, setNotificacoes] = useState([]);
   const user = authData?.user; 
 
+  // --- FUNÇÃO DE FORMATAÇÃO DE DATA (SEM "RECENTEMENTE") ---
+  const formatarDataNotificacao = (dataISO) => {
+    if (!dataISO) return "";
+    
+    // Converte formato do banco (espaço) para formato ISO (T) para garantir compatibilidade
+    const dataTratada = typeof dataISO === 'string' ? dataISO.replace(' ', 'T') : dataISO;
+    const data = new Date(dataTratada);
+    
+    // Se a data for válida, retorna o padrão BR. Se for inválida, retorna a string original limpa
+    if (isNaN(data.getTime())) {
+      return dataISO.split('.')[0]; // Retorna a data bruta sem os milissegundos
+    }
+
+    return data.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).replace(',', ' às');
+  };
+
   // --- LÓGICA DE CARGOS ---
   const mapaCargos = {
       'admin': 'Administrador',
@@ -77,9 +99,7 @@ export default function HeaderLinks(props) {
     return () => clearInterval(intervalo);
   }, [carregarNotificacoes]);
 
-  // --- FUNÇÃO DE CLIQUE COM REDIRECIONAMENTO INTELIGENTE POR PERFIL ---
   const handleNotificacaoClick = async (notificacao) => {
-    // 1. Marca como lida no banco e no estado
     if (!notificacao.lida) {
       try {
         await marcarComoLida(notificacao.id);
@@ -89,23 +109,18 @@ export default function HeaderLinks(props) {
       } catch (error) { console.error("Erro ao marcar lida:", error); }
     }
 
-    // 2. Lógica de Redirecionamento Baseada no Perfil e Mensagem
     const msg = notificacao.mensagem.toLowerCase();
     
-    // CASO SEJA ADMIN
     if (perfilLimpo === 'admin' || perfilLimpo === 'administrador') {
-        // Independente de ser atribuição ou conclusão, o Admin gerencia tudo na Central
         if (msg.includes("atribuiu") || msg.includes("concluiu")) {
             navigate('/admin/solicitacoes');
         }
     } 
-    // CASO SEJA PRODUTOR
     else if (perfilLimpo === 'produtor') {
         if (msg.includes("concluiu")) {
             navigate('/produtor/minhas-solicitacoes');
         }
     } 
-    // CASO SEJA TÉCNICO OU OPERADOR
     else if (perfilLimpo === 'tecnico' || perfilLimpo === 'operador') {
         if (msg.includes("atribuiu")) {
             navigate('/admin/minha-agenda');
@@ -153,7 +168,10 @@ export default function HeaderLinks(props) {
         <Portal>
             <MenuList boxShadow={shadow} p="20px" borderRadius="20px" bg={menuBg} border="none" mt="22px" minW="400px" maxH="400px" overflowY="auto" zIndex="1500">
                 <Text fontSize="md" fontWeight="600" color={textColor} mb="20px">Notificações ({naoLidas})</Text>
-                {notificacoes.map((notif) => (
+                {notificacoes.length === 0 ? (
+                  <Text fontSize="sm" color="gray.500" textAlign="center">Nenhuma notificação</Text>
+                ) : (
+                  notificacoes.map((notif) => (
                     <MenuItem 
                       key={notif.id} 
                       onClick={() => handleNotificacaoClick(notif)} 
@@ -167,11 +185,13 @@ export default function HeaderLinks(props) {
                               {notif.mensagem}
                             </Text>
                             <Text fontSize='xs' color="gray.400" mt="1">
-                              {notif.data_criacao ? new Date(notif.data_criacao).toLocaleString() : ''}
+                              {/* DATA FORMATADA REAL AQUI */}
+                              {formatarDataNotificacao(notif.data_criacao)}
                             </Text>
                         </Flex>
                     </MenuItem>
-                ))}
+                  ))
+                )}
             </MenuList>
         </Portal>
       </Menu>

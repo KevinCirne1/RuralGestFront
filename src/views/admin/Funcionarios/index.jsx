@@ -15,6 +15,7 @@ import { formatarCPF, formatarTelefone, apenasNumeros } from "utils/formatters";
 const FuncionarioSchema = Yup.object().shape({
   nome: Yup.string().required('Nome é obrigatório'),
   login: Yup.string().required('Login/CPF é obrigatório'),
+  // Senha só é obrigatória se não tiver ID (ou seja, criando novo)
   senha: Yup.string().when('id', {
       is: (val) => !val, 
       then: (schema) => schema.min(6, 'Mínimo 6 caracteres').required('Senha é obrigatória'),
@@ -43,6 +44,7 @@ export default function FuncionariosPage() {
     setLoading(true);
     try {
       const response = await api.get('/usuarios');
+      // Filtra para não mostrar o "Produtor" (Agricultor), apenas a equipe interna
       const apenasEquipe = response.data.filter(u => u.perfil !== 'produtor');
       setFuncionarios(apenasEquipe);
     } catch (error) {
@@ -56,9 +58,10 @@ export default function FuncionariosPage() {
 
   const exibirLogin = (valor) => {
       if (!valor) return "";
+      // Se for puramente numérico e grande, assume que é CPF e formata
       const apenasNums = apenasNumeros(valor);
-      const isNumerico = /^\d+$/.test(apenasNums) && valor.length >= 11;
-      return isNumerico ? formatarCPF(valor) : valor;
+      const isCpf = /^\d+$/.test(apenasNums) && valor.length >= 11 && !/[a-zA-Z]/.test(valor);
+      return isCpf ? formatarCPF(valor) : valor;
   };
 
   const handleOpenForm = (func = null) => {
@@ -68,18 +71,27 @@ export default function FuncionariosPage() {
 
   const handleSubmit = async (values, actions) => {
     try {
-      const isCPF = /^\d+$/.test(apenasNumeros(values.login));
-      const loginLimpo = isCPF ? apenasNumeros(values.login) : values.login;
+      // --- CORREÇÃO DE LÓGICA DE LOGIN ---
+      // Verifica se o login digitado contém alguma letra
+      const possuiLetras = /[a-zA-Z]/.test(values.login);
+      
+      let loginFinal = values.login;
+
+      if (!possuiLetras) {
+          // Se NÃO tem letras, assume que é CPF/Telefone e limpa a formatação (pontos e traços)
+          loginFinal = apenasNumeros(values.login);
+      }
+      // Se TEM letras (ex: "joao.silva" ou "admin123"), mantém original
       
       // --- 1. VERIFICAÇÃO DE DUPLICIDADE (LOGIN) ---
       const loginExiste = funcionarios.find(func => 
-         func.login === loginLimpo && func.id !== funcionarioSelecionado?.id
+         func.login === loginFinal && func.id !== funcionarioSelecionado?.id
       );
 
       if (loginExiste) {
         toast({ 
             title: "Login Indisponível", 
-            description: "Este CPF ou nome de usuário já está sendo usado por outro membro.", 
+            description: "Este CPF ou nome de usuário já está sendo usado.", 
             status: "warning",
             duration: 5000,
             isClosable: true
@@ -88,7 +100,6 @@ export default function FuncionariosPage() {
       }
 
       // --- 2. VERIFICAÇÃO DE DUPLICIDADE (CONTATO) ---
-      // Só verifica se o usuário preencheu o contato
       if (values.contato) {
         const contatoLimpo = apenasNumeros(values.contato);
         const contatoExiste = funcionarios.find(func => 
@@ -98,7 +109,7 @@ export default function FuncionariosPage() {
         if (contatoExiste) {
             toast({ 
                 title: "Telefone em uso", 
-                description: `O número informado já pertence ao funcionário ${contatoExiste.nome}.`, 
+                description: `Número já pertence a ${contatoExiste.nome}.`, 
                 status: "warning",
                 duration: 5000,
                 isClosable: true
@@ -109,13 +120,16 @@ export default function FuncionariosPage() {
 
       const payload = {
           ...values,
-          login: loginLimpo,
+          login: loginFinal,
           contato: values.contato ? apenasNumeros(values.contato) : null
       };
 
+      // Remove senha do payload se for edição e estiver vazia (para não sobrescrever com vazio)
+      if (funcionarioSelecionado && !values.senha) {
+          delete payload.senha; 
+      }
+
       if (funcionarioSelecionado) {
-        if (!values.senha) delete payload.senha; 
-        
         await api.put(`/usuarios/${funcionarioSelecionado.id}`, payload);
         toast({ title: "Funcionário atualizado!", status: "success" });
       } else {
@@ -136,11 +150,11 @@ export default function FuncionariosPage() {
     if (!funcionarioParaDeletar) return;
     try {
         await api.delete(`/usuarios/${funcionarioParaDeletar.id}`);
-        toast({ title: "Usuário excluído com sucesso.", status: "success" });
+        toast({ title: "Usuário excluído.", status: "success" });
         fetchData();
         onDeleteClose();
     } catch (error) {
-        toast({ title: "Erro ao excluir.", description: "Tente novamente mais tarde.", status: "error" });
+        toast({ title: "Erro ao excluir.", description: "Verifique se ele possui tarefas vinculadas.", status: "error" });
     }
   };
 
@@ -180,9 +194,10 @@ export default function FuncionariosPage() {
             {funcionarios
                 .filter(func => {
                     const termo = busca.toLowerCase();
+                    const loginDisplay = func.login ? String(func.login).toLowerCase() : "";
                     return (
                         func.nome.toLowerCase().includes(termo) ||
-                        func.login.toLowerCase().includes(termo) ||
+                        loginDisplay.includes(termo) ||
                         func.perfil.toLowerCase().includes(termo)
                     );
                 })
@@ -212,7 +227,6 @@ export default function FuncionariosPage() {
                                         colorScheme="brand" 
                                         size="sm" 
                                         isRound 
-                                        aria-label="Editar Funcionário"
                                         onClick={() => handleOpenForm(func)} 
                                     />
                                 </Tooltip>
@@ -222,7 +236,6 @@ export default function FuncionariosPage() {
                                         colorScheme="red" 
                                         size="sm" 
                                         isRound 
-                                        aria-label="Excluir Funcionário"
                                         onClick={() => { setFuncionarioParaDeletar(func); onDeleteOpen(); }} 
                                     />
                                 </Tooltip>
@@ -240,8 +253,10 @@ export default function FuncionariosPage() {
           <Formik
             initialValues={funcionarioSelecionado ? {
                 ...funcionarioSelecionado,
+                id: funcionarioSelecionado.id, // Garante que o ID vai para validação do Yup
                 login: exibirLogin(funcionarioSelecionado.login),
-                contato: funcionarioSelecionado.contato ? formatarTelefone(funcionarioSelecionado.contato) : ''
+                contato: funcionarioSelecionado.contato ? formatarTelefone(funcionarioSelecionado.contato) : '',
+                senha: '' // Senha sempre vazia na edição
             } : { 
                 nome: '', login: '', senha: '', perfil: 'tecnico', contato: '' 
             }}
@@ -269,15 +284,13 @@ export default function FuncionariosPage() {
                         {({ field, form }) => (
                           <FormControl isInvalid={form.errors.login && form.touched.login} mb={4}>
                             <FormLabel>Login (CPF ou Usuário)</FormLabel>
-                            
                             <Input 
                                 {...field} 
                                 placeholder="CPF ou nome de usuário"
-                                isDisabled={!!funcionarioSelecionado}
-                                bg={!!funcionarioSelecionado ? "gray.100" : "inherit"}
-                                color={!!funcionarioSelecionado ? "gray.500" : "inherit"}
+                                // Bloqueia edição de login se já existir (opcional, removi o disabled para flexibilidade)
                                 onChange={(e) => {
                                     const valor = e.target.value;
+                                    // Se for só número e parecer CPF, formata
                                     if (/^\d*$/.test(apenasNumeros(valor)) && valor.length > 3 && !/[a-zA-Z]/.test(valor)) {
                                         form.setFieldValue('login', formatarCPF(valor));
                                     } else {
@@ -286,11 +299,6 @@ export default function FuncionariosPage() {
                                 }}
                             />
                             <FormErrorMessage>{form.errors.login}</FormErrorMessage>
-                            {!!funcionarioSelecionado && (
-                                <FormHelperText color="orange.400" fontSize="xs">
-                                  O Login/CPF não pode ser alterado.
-                                </FormHelperText>
-                            )}
                           </FormControl>
                         )}
                       </Field>
@@ -320,7 +328,7 @@ export default function FuncionariosPage() {
                         <Select {...field}>
                             <option value="tecnico">Técnico Agrícola</option>
                             <option value="operador">Operador de Máquinas</option>
-                            <option value="admin">Assistente</option>
+                            <option value="admin">Assistente (Admin)</option>
                         </Select>
                       </FormControl>
                     )}
