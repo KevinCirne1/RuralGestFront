@@ -19,36 +19,58 @@ export default function MinhaAgenda() {
   const [obs, setObs] = useState("");
   const [selectedSolicitacao, setSelectedSolicitacao] = useState(null);
   
+  // --- DESIGN: CORES DINÂMICAS ---
   const cardBg = useColorModeValue("white", "navy.800");
   const textColor = useColorModeValue("secondaryGray.900", "white");
+  
+  // Fundo das caixas (Transparência elegante no modo escuro)
+  const boxBg = useColorModeValue("brand.50", "whiteAlpha.100");
+  const boxReportBg = useColorModeValue("gray.50", "whiteAlpha.100");
+  
+  // --- AJUSTE DE BRILHO: Cores de texto mais claras no modo escuro ---
+  const obsTextColor = useColorModeValue("brand.700", "gray.50"); // De gray.200 para gray.50
+  const reportTextColor = useColorModeValue("gray.600", "white"); // De gray.300 para white
 
-  // Pega o ID do motorista/técnico que logou
   const userId = localStorage.getItem('user_id'); 
 
-  // --- FUNÇÃO SEGURA PARA FORMATAR DATA ---
-  // Isso impede o erro "RangeError: Invalid time value"
-  const formatarData = (dataISO) => {
-    if (!dataISO) return 'A definir'; // Se for nulo ou vazio
-    
-    const dataObj = new Date(dataISO);
-    // Verifica se a data é válida antes de formatar
-    if (isNaN(dataObj.getTime())) {
-      return 'Data Inválida'; 
+  // --- FUNÇÃO DE DATA ---
+  const formatarDataBR = (sol, tipo) => {
+    let rawDate = null;
+    if (tipo === 'pedido') {
+      rawDate = sol.data_solicitacao || sol.created_at;
+    } else {
+      rawDate = sol.data_execucao || sol.updated_at;
     }
-    
-    return format(dataObj, 'dd/MM/yyyy');
+
+    if (!rawDate) return '---';
+
+    try {
+      if (typeof rawDate === 'string' && rawDate.length === 10 && rawDate.includes('-')) {
+         const [ano, mes, dia] = rawDate.split('-');
+         return `${dia}/${mes}/${ano}`;
+      }
+      const dateObj = new Date(rawDate);
+      if (isNaN(dateObj.getTime())) return '---';
+      return format(new Date(dateObj.valueOf() + dateObj.getTimezoneOffset() * 60000), 'dd/MM/yyyy');
+    } catch (e) {
+      return '---';
+    }
   };
 
   const carregarAgenda = useCallback(async () => {
+    if (!userId) {
+        setLoading(false);
+        return;
+    }
     try {
       setLoading(true);
       const res = await api.get('/solicitacoes');
-      
-      // FILTRO: Mostra serviços atribuídos ao usuário logado
-      const minhasAtividades = res.data.filter(sol => 
-        (String(sol.operador_id) === String(userId) || String(sol.veiculo_id) === String(userId))
-      );
-      
+      const minhasAtividades = res.data.filter(sol => {
+        const idUser = String(userId);
+        const isOperador = sol.operador_id && String(sol.operador_id) === idUser;
+        const isVeiculo = sol.veiculo_id && String(sol.veiculo_id) === idUser;
+        return isOperador || isVeiculo;
+      });
       setTarefas(minhasAtividades);
     } catch (e) {
       console.error(e);
@@ -68,22 +90,20 @@ export default function MinhaAgenda() {
 
   const handleConfirmarConclusao = async () => {
     if (!selectedSolicitacao) return;
-    
+    const dataSomenteDia = format(new Date(), 'yyyy-MM-dd');
     setLoadingId(selectedSolicitacao.id); 
     try {
       await api.put(`/solicitacoes/${selectedSolicitacao.id}`, {
         status: 'CONCLUÍDA',
         observacao_funcionario: obs,
-        data_execucao: new Date().toISOString() 
+        data_execucao: dataSomenteDia 
       });
-
-      toast({ title: "Serviço concluído com sucesso!", status: "success" });
-      
-      // Atualiza a lista localmente para refletir a mudança
+      toast({ title: "Serviço concluído!", status: "success" });
       setTarefas(prev => prev.map(t => 
-        t.id === selectedSolicitacao.id ? { ...t, status: 'CONCLUÍDA', observacao_funcionario: obs } : t
+        t.id === selectedSolicitacao.id 
+          ? { ...t, status: 'CONCLUÍDA', observacao_funcionario: obs, data_execucao: dataSomenteDia } 
+          : t
       ));
-      
       onClose();
     } catch (error) {
       console.error(error);
@@ -133,69 +153,47 @@ export default function MinhaAgenda() {
               <Flex align='center'>
                 <Icon as={MdAccessTime} color='gray.400' mr='2' boxSize={5}/>
                 <Text fontSize='sm'>
-                  {/* AQUI ESTAVA O ERRO: Agora usamos a função segura */}
-                  <b>Data:</b> {formatarData(sol.data_execucao)}
+                  <b>Pedido em:</b> {formatarDataBR(sol, 'pedido')}
                 </Text>
               </Flex>
 
-              {/* --- NOVO BLOCO: PEDIDO DO AGRICULTOR --- */}
-              {sol.observacao && (
-                <Box mt="1" p="2" bg="brand.50" borderRadius="md" borderLeft="3px solid" borderColor="brand.500">
-                  <Flex align="center" mb="1">
-                    <Icon as={MdChatBubbleOutline} color="brand.500" mr="1" w="12px" h="12px" />
-                    <Text fontSize='xs' fontWeight="bold" color="brand.800" textTransform="uppercase">
-                      Pedido do Agricultor:
-                    </Text>
-                  </Flex>
-                  <Text fontSize='sm' color="brand.700" fontStyle="italic">
-                    "{sol.observacao}"
+              {sol.status === 'CONCLUÍDA' && (
+                <Flex align='center' color="green.500">
+                  <Icon as={MdCheckCircle} mr='2' boxSize={5}/>
+                  <Text fontSize='sm'>
+                    <b>Executado em:</b> {formatarDataBR(sol, 'execucao')}
                   </Text>
-                </Box>
+                </Flex>
               )}
 
-              {/* --- INSTRUÇÕES DO ADMIN --- */}
-              {sol.observacoes && (
-                <Box mt="1" p="2" bg="blue.50" borderRadius="md" borderLeft="3px solid" borderColor="blue.400">
-                  <Flex align="center" mb="1">
-                    <Icon as={MdChatBubbleOutline} color="blue.500" mr="1" w="12px" h="12px" />
-                    <Text fontSize='xs' fontWeight="bold" color="blue.800" textTransform="uppercase">
-                      Instruções do Admin:
-                    </Text>
-                  </Flex>
-                  <Text fontSize='sm' color="blue.700">
-                    "{sol.observacoes}"
-                  </Text>
+              {sol.observacao && (
+                <Box 
+                  mt="1" p="2" borderRadius="md" borderLeft="3px solid" borderColor="brand.500"
+                  bg={boxBg}
+                >
+                  <Text fontSize='xs' fontWeight="bold" color="brand.500" textTransform="uppercase">Pedido do Agricultor:</Text>
+                  <Text fontSize='sm' color={obsTextColor} fontStyle="italic">"{sol.observacao}"</Text>
                 </Box>
               )}
             </Stack>
 
-            {/* SEÇÃO DE STATUS E RELATÓRIO DO FUNCIONÁRIO APÓS CONCLUIR */}
-            {sol.status === 'CONCLUÍDA' && (
-              <Box mt="4" pt="4" borderTop="1px solid" borderColor="gray.100">
-                <Flex align="center" color="green.500" mb="2">
-                    <Icon as={MdCheckCircle} mr="2"/>
-                    <Text fontSize="sm" fontWeight="bold">Serviço Finalizado</Text>
-                </Flex>
-                
+            {sol.status === 'CONCLUÍDA' ? (
+              <Box mt="4" pt="4" borderTop="1px solid" borderColor="whiteAlpha.200">
+                <Text fontSize="sm" fontWeight="bold" color="green.500" mb="2">Serviço Finalizado</Text>
                 {sol.observacao_funcionario && (
-                  <Box p="3" bg="gray.50" borderRadius="md" borderLeft="4px solid" borderColor="green.400">
-                    <Flex align="center" mb="1">
-                       <Icon as={MdChatBubbleOutline} mr="1" boxSize={3} color="gray.400"/>
-                       <Text fontSize="xs" fontWeight="bold" color="gray.500" textTransform="uppercase">Meu Relatório:</Text>
-                    </Flex>
-                    <Text fontSize="sm" color="gray.600" fontStyle="italic">
-                      "{sol.observacao_funcionario}"
-                    </Text>
+                  <Box 
+                    p="3" borderRadius="md" borderLeft="4px solid" borderColor="green.400"
+                    bg={boxReportBg}
+                  >
+                    <Text fontSize="xs" fontWeight="bold" color="gray.400">MEU RELATÓRIO:</Text>
+                    <Text fontSize="sm" color={reportTextColor} fontStyle="italic">"{sol.observacao_funcionario}"</Text>
                   </Box>
                 )}
               </Box>
-            )}
-
-            {sol.status !== 'CONCLUÍDA' && (
+            ) : (
               <Button 
                 mt='20px' leftIcon={<MdCheckCircle />} colorScheme='green' width="100%"
                 onClick={() => handleOpenConcluir(sol)} isLoading={loadingId === sol.id}
-                loadingText="Salvando..."
               >
                 Concluir e Relatar
               </Button>
@@ -203,28 +201,23 @@ export default function MinhaAgenda() {
           </Card>
         )) : (
           <Flex direction="column" align="center" gridColumn="1 / -1" mt="10">
-            <Text color='gray.500' fontSize="lg">Nenhum serviço pendente.</Text>
+            <Text color='gray.500' fontSize="lg">Nenhum serviço atribuído a você.</Text>
           </Flex>
         )}
       </SimpleGrid>
 
-      {/* MODAL DE CONCLUSÃO */}
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg">
         <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(2px)" />
         <ModalContent>
           <ModalHeader>Finalizar Serviço #{selectedSolicitacao?.id}</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
-            <Text mb={4} color="gray.600">Descreva brevemente como foi a execução do serviço:</Text>
-            <Textarea 
-              placeholder="Ex: Solo em boas condições. Serviço realizado com sucesso..."
-              value={obs} onChange={(e) => setObs(e.target.value)} 
-              focusBorderColor="brand.500" rows={5}
-            />
+            <Text mb={4} color="gray.600">Relatório de execução:</Text>
+            <Textarea placeholder="Descreva o serviço realizado..." value={obs} onChange={(e) => setObs(e.target.value)} rows={5} />
           </ModalBody>
           <ModalFooter>
             <Button variant='ghost' mr={3} onClick={onClose}>Cancelar</Button>
-            <Button colorScheme='green' onClick={handleConfirmarConclusao}>Confirmar Conclusão</Button>
+            <Button colorScheme='green' onClick={handleConfirmarConclusao}>Confirmar</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

@@ -30,21 +30,32 @@ export const AuthProvider = ({ children }) => {
 
       const userData = response.data;
 
-      // Estrutura os dados para salvar
+      // Estrutura os dados para salvar no Contexto
       const newAuthData = {
         user: userData, // Pegando id, nome e perfil
       };
 
+      // 1. Salva o objeto completo (para manter a sessão)
       localStorage.setItem('authData', JSON.stringify(newAuthData));
+      
+      // 2. --- A CORREÇÃO MÁGICA ESTÁ AQUI ---
+      // Salvamos o ID separado para a 'MinhaAgenda.js' conseguir ler
+      if (userData.id) {
+          localStorage.setItem('user_id', userData.id);
+      }
+
       setAuthData(newAuthData);
 
       // Verifica o perfil para mandar para a tela certa
       if (newAuthData.user.perfil === 'gestor' || newAuthData.user.perfil === 'admin') {
         navigate('/admin/dashboard'); 
-      } else if (newAuthData.user.perfil === 'agricultor') {
+      } else if (newAuthData.user.perfil === 'agricultor' || newAuthData.user.perfil === 'produtor') {
         navigate('/produtor/dashboard'); 
+      } else if (newAuthData.user.perfil === 'tecnico' || newAuthData.user.perfil === 'operador') {
+        // Redireciona funcionários direto para a agenda deles
+        navigate('/admin/minha-agenda'); 
       } else {
-        // Fallback caso não tenha perfil definido
+        // Fallback
         navigate('/'); 
       }
 
@@ -57,6 +68,7 @@ export const AuthProvider = ({ children }) => {
   // Função de Logout 
   const logout = () => {
     localStorage.removeItem('authData');
+    localStorage.removeItem('user_id'); // Limpa o ID ao sair também
     setAuthData(null);
     navigate('/auth/sign-in');
   };
