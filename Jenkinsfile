@@ -7,18 +7,6 @@ pipeline {
     }
 
     stages {
-        stage('Install Dependencies') {
-            agent {
-                docker { 
-                    image 'node:20.2.0-alpine3.17' 
-                    reuseNode true
-                }
-            }
-            steps {
-                sh 'npm install'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 script {
